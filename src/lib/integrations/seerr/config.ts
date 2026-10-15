@@ -67,6 +67,11 @@ function target(env: NodeJS.ProcessEnv, serverVar: string, rootVar: string, prof
   };
 }
 
+/** Seerr is optional: it counts as set up once SEERR_URL and SEERR_API_KEY both have a value. */
+export function isSeerrConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env.SEERR_URL?.trim() && env.SEERR_API_KEY?.trim());
+}
+
 /** Connection settings only; enough for listing requests and reading Seerr's server settings. */
 export function loadSeerrConfig(env: NodeJS.ProcessEnv = process.env): SeerrConfig {
   const baseUrl = httpUrl("SEERR_URL", required(env, "SEERR_URL"));

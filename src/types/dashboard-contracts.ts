@@ -274,11 +274,22 @@ export interface SeerrDecisionResponse {
 
 export interface WaitingDto {
   gmailNeedsReply: number;
-  /** Live count from Seerr; null when Seerr is unavailable or not configured (see TodayResponse.sources.seerr). */
+  /** Live count from Seerr; null when Seerr is unavailable or not set up (see TodayResponse.sources.seerr). */
   seerrPending: number | null;
   orphans: { sonarr: number; radarr: number; sonarrUrl: string | null; radarrUrl: string | null };
   /** Browser link for "Open Seerr ↗" (SEERR_PUBLIC_URL, http(s) only); null when not set. */
   seerrUrl: string | null;
+  /** Custom items Hermes pushed (PUT /api/hermes/waiting/:key), count > 0 only, in position order. */
+  custom: WaitingItemDto[];
+}
+
+/** A custom "Waiting on you" item: "PRs to review · 3", with an optional line of detail and link. */
+export interface WaitingItemDto {
+  key: string;
+  title: string;
+  count: number;
+  detail: string | null;
+  url: string | null;
 }
 
 // ---------- Whole page ----------
@@ -300,7 +311,8 @@ export interface TodayResponse {
   timeline: TimelineResponse;
   workingOn: { activeSprint: SprintDto | null; cards: WorkCardDto[] };
   warnings: { alerts: AlertDto[]; waiting: WaitingDto };
-  sources: { calendar: SourceStateDto; seerr: SourceStateDto };
+  /** `seerr` is null when Seerr isn't set up on the server (it is optional). */
+  sources: { calendar: SourceStateDto; seerr: SourceStateDto | null };
 }
 
 // ---------- Live stream (/api/stream, Server-Sent Events) ----------
@@ -315,6 +327,7 @@ export type LiveEvent =
   | { type: "alert.changed"; alertId: string }
   | { type: "schedule.updated"; scheduleId: string }
   | { type: "seerr.changed" }
+  | { type: "waiting.changed" }
   | { type: "day.rollover"; date: string };
 
 // ---------- Hermes write API (/api/hermes/*, bearer HERMES_DASHBOARD_TOKEN) ----------
@@ -501,4 +514,6 @@ export interface HermesStateResponse {
   dailyMessage: HermesDailyMessage | null;
   /** Stocks watchlist in banner order (D9). */
   watchlist: string[];
+  /** Custom "Waiting on you" items, zero counts included, in position order. */
+  waiting: (WaitingItemDto & { position: number })[];
 }

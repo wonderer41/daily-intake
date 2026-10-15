@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db/prisma";
 import { runGithubCardMetaJob } from "@/lib/integrations/github/card-meta";
 import { syncCalendarTimeline } from "@/lib/integrations/google-calendar/timeline-sync";
+import { isSeerrConfigured } from "@/lib/integrations/seerr/config";
 import { checkSeerrPending } from "@/lib/integrations/seerr/pending";
 import { syncStockHistory, syncStockQuotes } from "@/lib/integrations/stocks/sync";
+import { runScheduleQueue } from "@/lib/schedule/runner";
 import { publishLiveEvent, sendLiveEvent } from "@/lib/live/publish";
 import { dashboardTimeZone, localDateString } from "@/lib/time/zone";
 import { type CalendarJobResult, formatCalendarJobResult, syncCalendarAndPublish } from "./calendar-job";
@@ -59,10 +61,13 @@ export const workerJobs: WorkerJob[] = [
     run: async ({ now, timeZone }) => formatRetentionResult(await runRetention(prisma, now, timeZone)),
   },
   {
-    // Waiting panel count. The first poll after a restart publishes too.
+    // Waiting panel count. The first poll after a restart publishes too. Seerr is optional: without
+    // SEERR_URL / SEERR_API_KEY the job does nothing and logs nothing.
     name: "seerr-poll",
     trigger: { everyMs: 2 * MINUTE },
+    quiet: true,
     run: async () => {
+      if (!isSeerrConfigured()) return;
       const result = await checkSeerrPending(lastSeerrPending);
       lastSeerrPending = result.count;
       return `${result.count} pending${result.changed ? " · changed" : ""}`;
@@ -91,5 +96,13 @@ export const workerJobs: WorkerJob[] = [
     name: "github-sync",
     trigger: { everyMs: 5 * MINUTE },
     run: async ({ now }) => runGithubCardMetaJob(now),
+  },
+  {
+    // "Ask Hermes" in the scheduling bubble: hands new requests to Hermes and settles them from its answer.
+    // Each request runs in the background (up to 2 min), so a tick only picks up new ones.
+    name: "schedule-runner",
+    trigger: { everyMs: 2_000 },
+    quiet: true,
+    run: async () => runScheduleQueue({ syncCalendar: () => runCalendarSync() }),
   },
 ];

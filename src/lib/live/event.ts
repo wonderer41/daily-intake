@@ -16,6 +16,7 @@ const LIVE_EVENT_TYPES: Record<LiveEvent["type"], true> = {
   "alert.changed": true,
   "schedule.updated": true,
   "seerr.changed": true,
+  "waiting.changed": true,
   "day.rollover": true,
 };
 
@@ -60,6 +61,7 @@ export function toLiveEvent(value: unknown): LiveEvent | null {
     case "schedule.updated":
       return isId(value.scheduleId) ? { type, scheduleId: value.scheduleId } : null;
     case "seerr.changed":
+    case "waiting.changed":
       return { type };
   }
 }

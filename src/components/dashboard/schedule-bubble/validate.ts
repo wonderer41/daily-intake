@@ -1,3 +1,4 @@
+import { pastTimeMessage, SCHEDULE_MESSAGES } from "@/lib/schedule/messages";
 import { clockFromMinutes, DAY_MINUTES, formatDuration, MAX_LENGTH, MIN_LENGTH, parseClock, parseLength } from "./format";
 
 // Checks the bubble runs before asking the server.
@@ -7,16 +8,14 @@ export const MESSAGES = {
   noStart: "I need a start time first.",
   badLength: "Give me a length of at least 1 minute.",
   tooLong: `Keep it to ${MAX_LENGTH} minutes (12 h) or less.`,
-  pastDay: "That day is over. Pick a time today or later.",
-  pastMidnight: "That runs past midnight. Try an earlier start.",
-  noAnswer: "Hermes didn't answer. Try again.",
+  pastDay: SCHEDULE_MESSAGES.pastDay,
+  pastMidnight: SCHEDULE_MESSAGES.pastMidnight,
+  noAnswer: SCHEDULE_MESSAGES.noAnswer,
   notConnected: "Scheduling isn't connected yet — it arrives with the Hermes step.",
   checking: "Hermes is checking your calendar…",
 } as const;
 
-export function pastTimeMessage(nowClock: string): string {
-  return `That time already passed today. Pick something after ${nowClock}.`;
-}
+export { pastTimeMessage };
 
 /** Where the bubble's date sits relative to the current local day. */
 export type DayState = "past" | "today" | "future";

@@ -4,21 +4,24 @@ import { ExternalIcon } from "@/components/ui/icons";
 import { InnerCard } from "@/components/ui/inner-card";
 import { SourceDown } from "@/components/ui/source-down";
 import { RailTitle } from "@/components/ui/typography";
-import type { SourceStateDto, WaitingDto } from "@/types/dashboard-contracts";
+import type { SourceStateDto, WaitingDto, WaitingItemDto } from "@/types/dashboard-contracts";
 import { useDashboard } from "../../context";
 import { countLabel, gmailLine, seerrSummary, waitingVisibility } from "./format";
 import { SeerrBubble } from "./seerr-bubble";
 
 export interface WaitingPanelProps {
   waiting: WaitingDto;
-  /** sources.seerr: when it is down the Seerr item says so and its count reads "?". */
-  seerr: SourceStateDto;
+  /** sources.seerr: when it is down the Seerr item says so and its count reads "?"; null when Seerr isn't set up. */
+  seerr: SourceStateDto | null;
 }
 
-/** "Waiting on you": Gmail, Seerr (with the approve bubble) and orphan review. Items hide at zero. */
+/**
+ * "Waiting on you": Gmail, Seerr (with the approve bubble), orphan review, then the custom items Hermes
+ * pushes (PUT /api/hermes/waiting/:key). Every item hides at zero.
+ */
 export function WaitingPanel({ waiting, seerr }: WaitingPanelProps) {
   const [seerrOpen, setSeerrOpen] = useState(false);
-  const visible = waitingVisibility(waiting, seerr.ok, seerrOpen);
+  const visible = waitingVisibility(waiting, seerr?.ok ?? null, seerrOpen);
 
   return (
     <GlassPanel pad="rail" aria-label="Waiting on you" className="flex flex-col gap-3">
@@ -29,10 +32,13 @@ export function WaitingPanel({ waiting, seerr }: WaitingPanelProps) {
           <span className="text-[13px] text-text-muted">{gmailLine(waiting.gmailNeedsReply)}</span>
         </InnerCard>
       ) : null}
-      {visible.seerr ? (
+      {visible.seerr && seerr ? (
         <SeerrItem count={waiting.seerrPending} source={seerr} seerrUrl={waiting.seerrUrl} open={seerrOpen} onOpenChange={setSeerrOpen} />
       ) : null}
       {visible.orphans ? <OrphanReview orphans={waiting.orphans} /> : null}
+      {waiting.custom.map((item) => (
+        <CustomItem key={item.key} item={item} />
+      ))}
       {visible.nothing ? <p className="m-0 text-[15px] text-text-muted">Nothing waiting.</p> : null}
     </GlassPanel>
   );
@@ -130,6 +136,39 @@ function OrphanReview({ orphans }: { orphans: WaitingDto["orphans"] }) {
           {tile.name} · {tile.label} — no link ({tile.env} is not set)
         </p>
       ))}
+    </InnerCard>
+  );
+}
+
+/** A custom item from Hermes: title and count, an optional line of detail, and a link when it has one. */
+function CustomItem({ item }: { item: WaitingItemDto }) {
+  const body = (
+    <>
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="flex items-center gap-1.5 font-semibold text-text-strong">
+          {item.title}
+          {item.url ? <ExternalIcon size={14} className="text-lilac-text" /> : null}
+        </span>
+        <span className="font-mono text-[15px] text-text-strong">{item.count}</span>
+      </span>
+      {item.detail ? <span className="text-[13px] text-text-muted">{item.detail}</span> : null}
+    </>
+  );
+  return (
+    <InnerCard accent="hermes" className="flex min-w-0 flex-col">
+      {item.url ? (
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-h-11 flex-col gap-1 px-3.5 py-3 no-underline transition-colors duration-200 hover:bg-[rgba(8,18,22,0.35)]"
+        >
+          {body}
+          <span className="sr-only">(opens in a new tab)</span>
+        </a>
+      ) : (
+        <div className="flex flex-col gap-1 px-3.5 py-3">{body}</div>
+      )}
     </InnerCard>
   );
 }

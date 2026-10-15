@@ -257,9 +257,11 @@ async function main(): Promise<void> {
     check(Array.isArray(body.warnings.alerts) && typeof body.warnings.waiting.gmailNeedsReply === "number", "warnings missing");
     const seerr = body.warnings.waiting.seerrPending;
     check(seerr === null || typeof seerr === "number", "seerrPending should be a number or null");
-    check(typeof body.sources.calendar.ok === "boolean" && typeof body.sources.seerr.ok === "boolean", "sources missing");
-    check((seerr === null) === !body.sources.seerr.ok, "seerrPending null exactly when sources.seerr is not ok");
-    return `${body.timeline.events.length} events · ${body.workingOn.cards.length} cards · ${body.warnings.alerts.length} alerts · seerr ${seerr ?? `unavailable (${body.sources.seerr.error})`} · calendar ${body.sources.calendar.ok ? "ok" : body.sources.calendar.error}`;
+    const seerrSource = body.sources.seerr; // null when Seerr isn't set up (it is optional)
+    check(typeof body.sources.calendar.ok === "boolean" && (seerrSource === null || typeof seerrSource.ok === "boolean"), "sources missing");
+    check((seerr === null) === (seerrSource === null || !seerrSource.ok), "seerrPending null exactly when Seerr is not set up or not ok");
+    const seerrText = seerrSource === null ? "not set up" : (seerr ?? `unavailable (${seerrSource.error})`);
+    return `${body.timeline.events.length} events · ${body.workingOn.cards.length} cards · ${body.warnings.alerts.length} alerts · seerr ${seerrText} · calendar ${body.sources.calendar.ok ? "ok" : body.sources.calendar.error}`;
   });
 
   await step("GET /api/today?date= shows that day's daily message; bad date → 400", async () => {

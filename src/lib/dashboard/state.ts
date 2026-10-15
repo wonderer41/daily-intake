@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { dashboardTimeZone, localDateString } from "@/lib/time/zone";
 import type { HermesStateCard, HermesStateResponse, HermesStateSprint } from "@/types/dashboard-contracts";
 import { currentItem, dateOnly, toDbDate, toSprintDto } from "./dto";
+import { toWaitingItemDto } from "./waiting";
 
 function toStateSprint(row: Sprint, today: string): HermesStateSprint {
   const dto = toSprintDto(row, today);
@@ -24,7 +25,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
   const timeZone = dashboardTimeZone();
   const today = localDateString(now, timeZone);
 
-  const [sprints, cards, alerts, message, watchlist] = await Promise.all([
+  const [sprints, cards, alerts, message, watchlist, waiting] = await Promise.all([
     prisma.sprint.findMany({ where: { status: { in: ["active", "planned"] } }, orderBy: [{ startsOn: "asc" }, { createdAt: "asc" }] }),
     prisma.workCard.findMany({
       where: { status: { not: "archived" } },
@@ -42,6 +43,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     prisma.alert.findMany({ where: { resolvedAt: null }, orderBy: { openedAt: "asc" } }),
     prisma.dailyMessage.findUnique({ where: { date: toDbDate(today) } }),
     prisma.watchlistSymbol.findMany({ orderBy: [{ position: "asc" }, { symbol: "asc" }], select: { symbol: true } }),
+    prisma.waitingItem.findMany({ orderBy: [{ position: "asc" }, { title: "asc" }] }),
   ]);
 
   const stateSprints = sprints.map((row) => toStateSprint(row, today));
@@ -92,5 +94,6 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     })),
     dailyMessage: message ? { date: dateOnly(message.date), text: message.text, author: message.author } : null,
     watchlist: watchlist.map((row) => row.symbol),
+    waiting: waiting.map((row) => ({ ...toWaitingItemDto(row), position: row.position })),
   };
 }

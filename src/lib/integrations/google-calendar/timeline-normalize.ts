@@ -40,7 +40,7 @@ export function toCalendarEventFields(event: GoogleCalendarWindowEvent, timeZone
 
   const description = event.description ?? "";
   const itemRef = lowerUuid(event.privateProperties.dailyIntakeItemId) ?? ITEM_MARKER.exec(description)?.[1]?.toLowerCase() ?? null;
-  const alertRef = ALERT_MARKER.exec(description)?.[1]?.toLowerCase() ?? null;
+  const alertRef = lowerUuid(event.privateProperties.dailyIntakeAlertId) ?? ALERT_MARKER.exec(description)?.[1]?.toLowerCase() ?? null;
 
   return {
     externalId: event.id,

@@ -83,6 +83,21 @@ test("a failing job is logged and still runs on the next tick", async (t) => {
   await scheduler.stop();
 });
 
+test("a quiet job logs only the runs that return text", async (t) => {
+  const { scheduler, lines } = setup(t);
+  const results = ["", "picked up 1", ""];
+  scheduler.register({ name: "poller", trigger: { everyMs: 1_000 }, quiet: true, run: async () => results.shift() });
+
+  scheduler.start();
+  for (let tick = 0; tick < 3; tick += 1) {
+    await flush();
+    t.mock.timers.tick(1_000);
+  }
+  await flush();
+  assert.deepEqual(lines.map((line) => line.replace(/ok \S+/, "ok")), ["[worker] poller ok picked up 1"]);
+  await scheduler.stop();
+});
+
 test("stop() waits for the running job and nothing runs afterwards", async (t) => {
   const { scheduler } = setup(t);
   const run = deferred();

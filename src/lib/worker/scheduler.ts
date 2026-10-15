@@ -20,6 +20,8 @@ export interface WorkerJob {
   trigger: JobTrigger;
   /** Does the work. The returned text (counts, not secrets) is appended to the "ok" log line. */
   run: (context: JobContext) => Promise<string | void>;
+  /** Skip the "ok" log line when a run returns no text (for frequent polling jobs that usually find nothing). */
+  quiet?: boolean;
 }
 
 export interface SchedulerOptions {
@@ -138,6 +140,7 @@ export class Scheduler {
     try {
       const summary = await job.run({ now: startedAt, scheduledFor, timeZone: this.options.timeZone });
       const detail = typeof summary === "string" && summary.trim() ? ` ${safeLogText(summary)}` : "";
+      if (job.quiet && !detail) return;
       this.log(`[worker] ${job.name} ok ${formatDuration(Date.now() - startedAt.getTime())}${detail}`);
     } catch (error) {
       this.logError(`[worker] ${job.name} failed: ${safeErrorMessage(error)}`);

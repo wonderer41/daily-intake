@@ -333,6 +333,21 @@ model ItemProgress {
   @@index([status])
 }
 
+/// A custom "Waiting on you" item Hermes pushes (e.g. "PRs to review · 3"), next to the built-in
+/// Gmail, Seerr and orphan items. Hidden while count is 0; Hermes deletes it when it no longer applies.
+model WaitingItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  /// "<source>:<thing>", same format as Alert.dedupeKey, e.g. github:prs-to-review.
+  key       String   @unique @db.VarChar(200)
+  title     String   @db.VarChar(80)
+  count     Int
+  detail    String?  @db.VarChar(200)
+  url       String?  @db.VarChar(2048)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 /// Symbols shown on the stocks banner slide. Hermes or the user can replace the list at any time.
 model WatchlistSymbol {
   symbol            String    @id @db.VarChar(16)

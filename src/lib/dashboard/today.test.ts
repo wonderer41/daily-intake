@@ -124,6 +124,7 @@ function parts(overrides: Partial<TodayParts> = {}): TodayParts {
     snapshots: [gmail, orphans],
     dailyMessage: { date: new Date("2026-10-14T00:00:00Z"), text: "Go slow.", author: "hermes", updatedAt: AT },
     seerr: { count: 2, source: { ok: true, lastSyncAt: NOW.toISOString(), error: null } },
+    waitingItems: [],
     links: { sonarrUrl: "https://sonarr.example.com", radarrUrl: null, seerrUrl: "https://requests.example.com" },
     ...overrides,
   };
@@ -151,9 +152,10 @@ test("today: assembles banner, working-on, warnings and sources from what was re
     seerrPending: 2,
     orphans: { sonarr: 5, radarr: 1, sonarrUrl: "https://sonarr.example.com", radarrUrl: null },
     seerrUrl: "https://requests.example.com",
+    custom: [],
   });
   assert.deepEqual(today.sources.calendar, { ok: true, lastSyncAt: today.timeline.lastSyncAt, error: null });
-  assert.equal(today.sources.seerr.ok, true);
+  assert.equal(today.sources.seerr?.ok, true);
 });
 
 test("today: missing or malformed snapshots hide their slide and count as zero", () => {

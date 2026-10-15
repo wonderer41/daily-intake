@@ -191,13 +191,15 @@ export interface WaitingVisibility {
 
 /**
  * Each item hides at zero. Seerr stays while Seerr is down (count "?") and while its bubble is
- * open, so approving the last request doesn't yank the bubble away.
+ * open, so approving the last request doesn't yank the bubble away. `seerrOk` null means Seerr isn't
+ * set up on the server, so it never shows.
  */
-export function waitingVisibility(waiting: WaitingDto, seerrOk: boolean, seerrOpen: boolean): WaitingVisibility {
+export function waitingVisibility(waiting: WaitingDto, seerrOk: boolean | null, seerrOpen: boolean): WaitingVisibility {
   const gmail = waiting.gmailNeedsReply > 0;
-  const seerr = seerrOpen || !seerrOk || waiting.seerrPending === null || waiting.seerrPending > 0;
+  const seerr = seerrOk !== null && (seerrOpen || !seerrOk || waiting.seerrPending === null || waiting.seerrPending > 0);
   const orphans = waiting.orphans.sonarr > 0 || waiting.orphans.radarr > 0;
-  return { gmail, seerr, orphans, nothing: !gmail && !seerr && !orphans };
+  const custom = waiting.custom.some((item) => item.count > 0);
+  return { gmail, seerr, orphans, nothing: !gmail && !seerr && !orphans && !custom };
 }
 
 /** Booked block tag: "19:00–20:30" today, "Oct 15 · 19:00–20:30" on another day. */

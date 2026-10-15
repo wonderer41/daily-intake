@@ -229,3 +229,24 @@ export async function readOptionalJsonBody(request: Request): Promise<unknown> {
     invalid(ROOT, "must be valid JSON");
   }
 }
+
+export interface WaitingItemInput {
+  title: string;
+  count: number;
+  /** Absent = keep, null = clear. */
+  detail?: string | null;
+  url?: string | null;
+  position?: number;
+}
+
+/** PUT /api/hermes/waiting/:key — a custom "Waiting on you" item. Count 0 keeps it but hides it. */
+export function parseUpsertWaitingItem(body: unknown): WaitingItemInput {
+  const o = strictObject(body, ROOT, ["title", "count", "detail", "url", "position"]);
+  return {
+    title: requiredString(o.title, "title", 80),
+    count: integer(o.count, "count", { min: 0, max: 1_000_000 }),
+    detail: optionalString(o.detail, "detail", 200),
+    url: optionalHttpUrl(o.url, "url"),
+    position: optional(o.position, (v) => integer(v, "position", { min: 0, max: 1000 })),
+  };
+}

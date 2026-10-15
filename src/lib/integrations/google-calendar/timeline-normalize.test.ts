@@ -51,6 +51,10 @@ test("Hermes work blocks are detected from the private property or the descripti
   assert.equal(alert?.kind, "work_block");
   assert.equal(alert?.alertRef, ALERT_ID);
 
+  const alertByProperty = toCalendarEventFields(googleEvent({ privateProperties: { dailyIntakeAlertId: ALERT_ID } }), DENVER);
+  assert.equal(alertByProperty?.kind, "work_block");
+  assert.equal(alertByProperty?.alertRef, ALERT_ID);
+
   const junk = toCalendarEventFields(googleEvent({ privateProperties: { dailyIntakeItemId: "not-a-uuid" } }), DENVER);
   assert.equal(junk?.kind, "calendar");
   assert.equal(junk?.itemRef, null);

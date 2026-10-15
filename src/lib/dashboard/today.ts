@@ -1,13 +1,14 @@
-import type { BannerKind, DailyMessage, Prisma, Sprint } from "@/generated/prisma/client";
+import type { BannerKind, DailyMessage, Prisma, Sprint, WaitingItem } from "@/generated/prisma/client";
 import { HttpError } from "@/lib/api/http";
 import { prisma } from "@/lib/db/prisma";
 import { listRequests } from "@/lib/integrations/seerr/client";
-import { loadSeerrConfig } from "@/lib/integrations/seerr/config";
+import { isSeerrConfigured, loadSeerrConfig } from "@/lib/integrations/seerr/config";
 import { dashboardTimeZone, localDateString } from "@/lib/time/zone";
 import { getTimeline } from "@/lib/timeline/query";
 import type { BannerDto, BannerPayload, SourceStateDto, TimelineResponse, TodayResponse } from "@/types/dashboard-contracts";
 import { parseSnapshotPayload } from "./banner-payload";
 import { alertInclude, type AlertRow, cardInclude, type CardRow, dateOnly, toAlertDto, toDbDate, toSprintDto, toWorkCardDto } from "./dto";
+import { listVisibleWaitingItems, toWaitingItemDto } from "./waiting";
 
 // GET /api/today: everything the page needs in one call.
 // Each integration degrades on its own: a failing Seerr or
@@ -25,9 +26,10 @@ export interface SnapshotRow {
 }
 
 export interface SeerrCheck {
-  /** Pending requests in Seerr; null when Seerr could not be asked. */
+  /** Pending requests in Seerr; null when Seerr could not be asked or isn't set up. */
   count: number | null;
-  source: SourceStateDto;
+  /** Null when Seerr isn't set up (SEERR_URL / SEERR_API_KEY empty): the page leaves it out. */
+  source: SourceStateDto | null;
 }
 
 /** Everything getToday reads, so the response can be assembled (and tested) without a database. */
@@ -43,6 +45,8 @@ export interface TodayParts {
   snapshots: SnapshotRow[];
   dailyMessage: DailyMessage | null;
   seerr: SeerrCheck;
+  /** Custom "Waiting on you" items with count > 0, in position order. */
+  waitingItems: WaitingItem[];
   links: { sonarrUrl: string | null; radarrUrl: string | null; seerrUrl: string | null };
 }
 
@@ -104,10 +108,11 @@ export async function checkSeerrCount(
 const memory = globalThis as unknown as { todaySeerrLastOkAt?: Date };
 
 async function liveSeerrPending(now: Date, env: NodeJS.ProcessEnv): Promise<SeerrCheck> {
+  if (!isSeerrConfigured(env)) return { count: null, source: null };
   // Same filter as the Seerr bubble and the worker's poll, so the three always agree.
   const count = async () => (await listRequests(loadSeerrConfig(env), "pending", 1)).total;
   const result = await checkSeerrCount(count, { now, lastOkAt: memory.todaySeerrLastOkAt ?? null, timeoutMs: SEERR_TODAY_TIMEOUT_MS });
-  if (result.source.ok) memory.todaySeerrLastOkAt = now;
+  if (result.source?.ok) memory.todaySeerrLastOkAt = now;
   return result;
 }
 
@@ -161,6 +166,7 @@ export function assembleToday(parts: TodayParts): TodayResponse {
           radarrUrl: parts.links.radarrUrl,
         },
         seerrUrl: parts.links.seerrUrl,
+        custom: parts.waitingItems.map(toWaitingItemDto),
       },
     },
     sources: {
@@ -189,7 +195,7 @@ async function latestSnapshots(): Promise<SnapshotRow[]> {
 
 export async function getToday(date: string, now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<TodayResponse> {
   const timeZone = dashboardTimeZone(env);
-  const [timeline, activeSprint, cards, alerts, snapshots, dailyMessage, seerr] = await Promise.all([
+  const [timeline, activeSprint, cards, alerts, snapshots, dailyMessage, seerr, waitingItems] = await Promise.all([
     getTimeline(date, now, env),
     // D8 allows one active sprint; if a race ever leaves two, show the newest.
     prisma.sprint.findFirst({ where: { status: "active" }, orderBy: [{ startsOn: "desc" }, { updatedAt: "desc" }] }),
@@ -202,6 +208,7 @@ export async function getToday(date: string, now = new Date(), env: NodeJS.Proce
     latestSnapshots(),
     prisma.dailyMessage.findUnique({ where: { date: toDbDate(date) } }),
     liveSeerrPending(now, env),
+    listVisibleWaitingItems(),
   ]);
 
   return assembleToday({
@@ -215,6 +222,7 @@ export async function getToday(date: string, now = new Date(), env: NodeJS.Proce
     snapshots,
     dailyMessage,
     seerr,
+    waitingItems,
     links: {
       sonarrUrl: linkFromEnv(env.SONARR_URL),
       radarrUrl: linkFromEnv(env.RADARR_URL),

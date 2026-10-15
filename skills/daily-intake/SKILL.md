@@ -1,6 +1,6 @@
 ---
 name: daily-intake
-description: Read and update the user's Daily Intake dashboard through its HTTP API. Covers Working-on cards, checklist items, sprints, push-progress notes on items, banner snapshots (gmail, orphans, scan), the stocks watchlist, Broken-panel alerts, the daily message, and refreshing the timeline after calendar changes.
+description: Read and update the user's Daily Intake dashboard through its HTTP API. Covers Working-on cards, checklist items, sprints, push-progress notes on items, banner snapshots (gmail, orphans, scan), the stocks watchlist, Broken-panel alerts, custom "Waiting on you" items, the daily message, and refreshing the timeline after calendar changes.
 ---
 
 # Daily Intake dashboard
@@ -30,6 +30,7 @@ The rest of this file shows each request as `METHOD path` plus a body.
   - An item's `progress[]` lists the push notes that are still pending, as `{kind, commitSha}`.
 - `alerts`, which holds the open alerts (`dedupeKey`, `title`, `severity` and so on).
 - `dailyMessage` and `watchlist`.
+- `waiting`, which holds the custom "Waiting on you" items (`key`, `title`, `count`, `detail`, `url`, `position`), zero counts included.
 
 Read the state before every batch of writes. Reuse what is already there. Never create a second card or item for something that already exists, even if it has no key.
 
@@ -205,6 +206,22 @@ Each new `capturedAt` stores a new snapshot (`201`), and the page shows the newe
 - `severity` is `warning` or `critical`. Alerts have no version, so the latest push wins.
 - Re-sending a PUT for an alert that was resolved **reopens** it, because the problem came back.
 - `POST /api/hermes/alerts/<dedupeKey>/resolve` takes no body. Send it when the problem is gone. Resolving twice changes nothing.
+
+## 9b. Waiting on you (custom items)
+
+Besides Gmail, Seerr and orphan review, the "Waiting on you" panel shows any custom item you push, such as pull requests to review or invoices to pay. Only push things the user asked you to track.
+
+`PUT /api/hermes/waiting/<key>`
+
+```json
+{ "title": "PRs to review", "count": 3, "detail": "oldest from Monday", "url": "https://github.com/pulls", "position": 10 }
+```
+
+- `key` uses the alert format, `<source>:<thing>`, for example `github:prs-to-review`.
+- `title` is up to 80 characters and `detail` up to 200. `url` must be http(s). `detail` and `url` are optional; send `null` to clear one.
+- The page hides an item while its `count` is 0, so update the count as things change instead of deleting and re-creating it.
+- `DELETE /api/hermes/waiting/<key>` removes an item for good, when the user no longer wants it tracked.
+- Items have no version: the latest push wins, and sending the same values again changes nothing.
 
 ## 10. Daily message
 

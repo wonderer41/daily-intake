@@ -110,6 +110,9 @@ the daily history used for the 6-month change.
 
 ### Seerr (requests to approve)
 
+Optional. Leave `SEERR_URL` and `SEERR_API_KEY` empty and the Seerr item never appears; the worker
+skips it too.
+
 1. In Seerr, go to **Settings → General** and copy the **API Key** into `SEERR_API_KEY`.
 2. Set `SEERR_URL` to the address the server uses to reach Seerr (a LAN address works), and
    `SEERR_PUBLIC_URL` to the address the "Open Seerr" link should open in your browser.
@@ -155,17 +158,28 @@ scan), alerts, the daily message and the stock watchlist.
    from errors.
 4. Test against a running dev server: `npm run hermes:smoke`.
 
-### Dashboard → Hermes (scheduling, not built yet)
+### Dashboard → Hermes (scheduling)
 
-The "Schedule with Hermes" bubble will ask Hermes to book calendar time through Hermes's API server.
-The bubble is on the page, but the route behind it isn't built yet, so it says scheduling isn't
-connected. To get ready:
+"Schedule with Hermes" on a checklist item or a Broken alert books a block on your calendar:
+
+1. The page checks the time and the cached calendar first. A clash comes back right away, with a
+   one-click "Use HH:MM" for the next free slot.
+2. Otherwise the worker starts a run on Hermes's API server with the booking instructions. Hermes
+   checks Google again, creates the event (or moves the earlier block for the same item), and answers
+   with one line of JSON.
+3. The worker syncs the calendar, so the block shows up on the timeline and the item shows its time.
+   Hermes gets 2 minutes; closing the bubble stops the run.
+
+To set it up:
 
 1. In Hermes's env file: `API_SERVER_ENABLED=true` and `API_SERVER_KEY=<a long random string>`.
    Hermes listens on `127.0.0.1:8642` unless you set `API_SERVER_HOST` / `API_SERVER_PORT`.
 2. In this app's `.env`: `HERMES_API_URL=http://<API_SERVER_HOST>:<API_SERVER_PORT>/v1` and
    `HERMES_API_KEY` set to Hermes's `API_SERVER_KEY`.
-3. Developing on another machine? Tunnel to it:
+3. Hermes needs write access to Google Calendar, and it must be signed in to the **same Google account**
+   the dashboard reads. Otherwise bookings succeed but never appear on the timeline; the worker log
+   says so when it happens.
+4. Developing on another machine? Tunnel to it:
    `ssh -L 8642:<API_SERVER_HOST>:8642 <user>@<hermes-host>`, then use `http://127.0.0.1:8642/v1`.
 
 The API server gives whoever holds the key Hermes's full tool access, terminal included. Keep it bound

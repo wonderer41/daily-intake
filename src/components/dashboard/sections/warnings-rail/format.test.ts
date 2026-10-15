@@ -42,6 +42,7 @@ function waiting(overrides: Partial<WaitingDto> = {}): WaitingDto {
     seerrPending: 0,
     orphans: { sonarr: 0, radarr: 0, sonarrUrl: null, radarrUrl: null },
     seerrUrl: null,
+    custom: [],
     ...overrides,
   };
 }
@@ -153,6 +154,17 @@ test("waiting items hide at zero; Seerr stays while down or open", () => {
   assert.equal(waitingVisibility(waiting({ seerrPending: null }), false, false).seerr, true);
   assert.equal(waitingVisibility(waiting({ seerrPending: 0 }), true, true).seerr, true);
   assert.equal(waitingVisibility(waiting({ orphans: { sonarr: 0, radarr: 2, sonarrUrl: null, radarrUrl: null } }), true, false).orphans, true);
+});
+
+test("a custom item from Hermes means there is something waiting", () => {
+  const custom = [{ key: "github:prs", title: "PRs to review", count: 3, detail: null, url: null }];
+  assert.equal(waitingVisibility(waiting({ custom }), true, false).nothing, false);
+  assert.equal(waitingVisibility(waiting({ custom: [{ ...custom[0], count: 0 }] }), true, false).nothing, true);
+});
+
+test("Seerr never shows when it isn't set up on the server", () => {
+  assert.deepEqual(waitingVisibility(waiting({ seerrPending: null }), null, false), { gmail: false, seerr: false, orphans: false, nothing: true });
+  assert.equal(waitingVisibility(waiting({ seerrPending: null }), null, true).seerr, false);
 });
 
 test("booked block tag: clock range today, with the day otherwise", () => {

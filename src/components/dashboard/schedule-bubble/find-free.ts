@@ -1,25 +1,8 @@
+import { type BusyRange } from "@/lib/schedule/free-slot";
 import type { TimelineEventDto } from "@/types/dashboard-contracts";
-import { DAY_MINUTES, wallMinutes } from "./format";
+import { wallMinutes } from "./format";
 
-export interface BusyRange {
-  /** Local minutes after midnight. */
-  start: number;
-  end: number;
-}
-
-/**
- * Next free slot of `durationMin` at or after `fromMin`, or null when none is left before midnight.
- * Powers the conflict reply's "Use 20:30" button.
- */
-export function findFree(fromMin: number, durationMin: number, events: readonly BusyRange[]): number | null {
-  let t = fromMin;
-  for (const ev of [...events].sort((a, b) => a.start - b.start)) {
-    if (ev.end <= t) continue;
-    if (ev.start >= t + durationMin) return t;
-    t = Math.max(t, ev.end);
-  }
-  return t + durationMin <= DAY_MINUTES ? t : null;
-}
+export { findFree, type BusyRange } from "@/lib/schedule/free-slot";
 
 /**
  * The page's timed events on `date` as busy ranges. All-day events don't block time, and the
