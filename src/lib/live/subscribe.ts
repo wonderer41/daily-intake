@@ -83,7 +83,7 @@ export class LiveSubscriber {
     const client = new pg.Client({
       connectionString: this.connectionString,
       keepAlive: true,
-      application_name: "homelab-daily-live",
+      application_name: "daily-intake-live",
     });
     this.client = client;
     client.on("notification", (message) => {

@@ -1,4 +1,4 @@
-# Homelab Daily stack for Komodo (or plain `docker compose up -d`).
+# Daily Intake stack for Komodo (or plain `docker compose up -d`).
 #
 # - postgres : bridged container, published on the host loopback only (127.0.0.1:5432).
 # - migrate  : same image as the app, applies prisma/migrations once, then exits.

@@ -1,4 +1,4 @@
-# Homelab Daily
+# Daily Intake
 
 A personal, single-page daily dashboard for a homelab. One screen answers three questions: what is
 on my calendar today, what am I working on, and what is waiting on me or broken. Background jobs
@@ -148,9 +148,9 @@ Hermes creates and updates cards, sprints, checklist items, the banner snapshots
 scan), alerts, the daily message and the stock watchlist.
 
 1. Generate a token, for example with `openssl rand -hex 32`, and put it in `HERMES_DASHBOARD_TOKEN`.
-2. In Hermes's env file, set `HOMELAB_DAILY_TOKEN` to the same value and `HOMELAB_DAILY_URL` to where
+2. In Hermes's env file, set `DAILY_INTAKE_TOKEN` to the same value and `DAILY_INTAKE_URL` to where
    Hermes can reach the dashboard (for example `http://127.0.0.1:4849` when both run on the same host).
-3. Install the [`homelab-daily`](skills/homelab-daily/SKILL.md) skill in Hermes (see
+3. Install the [`daily-intake`](skills/daily-intake/SKILL.md) skill in Hermes (see
    [Agent skills](#agent-skills)). It describes every route, how to address rows, and how to recover
    from errors.
 4. Test against a running dev server: `npm run hermes:smoke`.
@@ -179,11 +179,11 @@ in Hermes, Claude Code and other agents that read that format.
 
 | Skill | What it lets the agent do |
 |---|---|
-| [`homelab-daily`](skills/homelab-daily/SKILL.md) | Read the page's state and update cards, checklist items, sprints, push-progress notes, the banner snapshots (Gmail, orphans, scan), alerts, the daily message and the stock watchlist |
+| [`daily-intake`](skills/daily-intake/SKILL.md) | Read the page's state and update cards, checklist items, sprints, push-progress notes, the banner snapshots (Gmail, orphans, scan), alerts, the daily message and the stock watchlist |
 
 To install a skill, copy its folder into the agent's skills folder: `~/.hermes/skills/` for Hermes,
-`~/.claude/skills/` for Claude Code. The agent also needs `HOMELAB_DAILY_URL` and
-`HOMELAB_DAILY_TOKEN` in its environment (see [Hermes → dashboard](#hermes--dashboard)), and it has to
+`~/.claude/skills/` for Claude Code. The agent also needs `DAILY_INTAKE_URL` and
+`DAILY_INTAKE_TOKEN` in its environment (see [Hermes → dashboard](#hermes--dashboard)), and it has to
 reach the dashboard on your network. An agent that runs in the cloud usually can't.
 
 ## Security

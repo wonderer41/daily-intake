@@ -40,18 +40,18 @@ test("all-day events are pinned to local midnight with an exclusive end", () => 
 });
 
 test("Hermes work blocks are detected from the private property or the description markers", () => {
-  const byProperty = toCalendarEventFields(googleEvent({ privateProperties: { homelabDailyItemId: ITEM_ID.toUpperCase() } }), DENVER);
+  const byProperty = toCalendarEventFields(googleEvent({ privateProperties: { dailyIntakeItemId: ITEM_ID.toUpperCase() } }), DENVER);
   assert.equal(byProperty?.kind, "work_block");
   assert.equal(byProperty?.itemRef, ITEM_ID);
 
-  const byMarker = toCalendarEventFields(googleEvent({ description: `https://github.com/x/y/issues/13\n[homelab-daily:item:${ITEM_ID}]` }), DENVER);
+  const byMarker = toCalendarEventFields(googleEvent({ description: `https://github.com/x/y/issues/13\n[daily-intake:item:${ITEM_ID}]` }), DENVER);
   assert.equal(byMarker?.itemRef, ITEM_ID);
 
-  const alert = toCalendarEventFields(googleEvent({ description: `[homelab-daily:alert:${ALERT_ID}]` }), DENVER);
+  const alert = toCalendarEventFields(googleEvent({ description: `[daily-intake:alert:${ALERT_ID}]` }), DENVER);
   assert.equal(alert?.kind, "work_block");
   assert.equal(alert?.alertRef, ALERT_ID);
 
-  const junk = toCalendarEventFields(googleEvent({ privateProperties: { homelabDailyItemId: "not-a-uuid" } }), DENVER);
+  const junk = toCalendarEventFields(googleEvent({ privateProperties: { dailyIntakeItemId: "not-a-uuid" } }), DENVER);
   assert.equal(junk?.kind, "calendar");
   assert.equal(junk?.itemRef, null);
 });

@@ -1,4 +1,4 @@
-// Background jobs for Homelab Daily (decision D12: a separate worker container, same image).
+// Background jobs for Daily Intake (decision D12: a separate worker container, same image).
 // Usage: npm run worker   — stop with Ctrl+C / SIGTERM; the running job finishes first.
 import "dotenv/config";
 import { prisma } from "@/lib/db/prisma";

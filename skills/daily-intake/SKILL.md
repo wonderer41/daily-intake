@@ -1,19 +1,19 @@
 ---
-name: homelab-daily
-description: Read and update the user's Homelab Daily dashboard through its HTTP API. Covers Working-on cards, checklist items, sprints, push-progress notes on items, banner snapshots (gmail, orphans, scan), the stocks watchlist, Broken-panel alerts, the daily message, and refreshing the timeline after calendar changes.
+name: daily-intake
+description: Read and update the user's Daily Intake dashboard through its HTTP API. Covers Working-on cards, checklist items, sprints, push-progress notes on items, banner snapshots (gmail, orphans, scan), the stocks watchlist, Broken-panel alerts, the daily message, and refreshing the timeline after calendar changes.
 ---
 
-# Homelab Daily dashboard
+# Daily Intake dashboard
 
 ## Connection
 
-- Base URL: `$HOMELAB_DAILY_URL`. Token: `$HOMELAB_DAILY_TOKEN`. Both are in your env file.
+- Base URL: `$DAILY_INTAKE_URL`. Token: `$DAILY_INTAKE_TOKEN`. Both are in your env file.
 - Never print the token, and never put it in a message, a file or a log.
 - Every request uses this template. Leave out `-d` when there is no body. Don't use `curl -f`, because it hides the error body, and you need that body to recover.
 
 ```bash
-curl -sS -X PUT "$HOMELAB_DAILY_URL/api/hermes/<path>" \
-  -H "Authorization: Bearer $HOMELAB_DAILY_TOKEN" -H "Content-Type: application/json" \
+curl -sS -X PUT "$DAILY_INTAKE_URL/api/hermes/<path>" \
+  -H "Authorization: Bearer $DAILY_INTAKE_TOKEN" -H "Content-Type: application/json" \
   -d '<json>' -w '\nHTTP %{http_code}\n'
 ```
 

@@ -154,7 +154,7 @@ export interface GoogleCalendarWindowEvent {
   /** Null only for cancelled stubs, which Google may send without times. */
   start: { date?: string; dateTime?: string } | null;
   end: { date?: string; dateTime?: string } | null;
-  /** extendedProperties.private, where Hermes stores homelabDailyItemId. */
+  /** extendedProperties.private, where Hermes stores dailyIntakeItemId. */
   privateProperties: Record<string, string>;
 }
 

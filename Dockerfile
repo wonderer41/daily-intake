@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 
-# Homelab Daily: one image, three jobs (selected by the command, see deploy/compose.yml):
+# Daily Intake: one image, three jobs (selected by the command, see deploy/compose.yml):
 #   app      (default CMD)                      node --import tsx scripts/server.ts  (next start + client allowlist)
 #   worker   npx tsx scripts/worker.ts          background jobs (TypeScript, run with tsx)
 #   migrate  npx prisma migrate deploy          applies prisma/migrations, then exits
 #
-# Build:   docker build -t homelab-daily:local .
+# Build:   docker build -t daily-intake:local .
 # No build arguments or secrets are needed. `prisma generate` only requires DATABASE_URL to be
 # *defined* (prisma.config.ts reads it with env()); it never connects, so a placeholder is used.
 

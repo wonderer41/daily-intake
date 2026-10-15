@@ -3,8 +3,8 @@ import { addDays, dayBounds } from "@/lib/time/zone";
 import type { GoogleCalendarWindowEvent } from "./client";
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-const ITEM_MARKER = new RegExp(`\\[homelab-daily:item:(${UUID})\\]`, "i");
-const ALERT_MARKER = new RegExp(`\\[homelab-daily:alert:(${UUID})\\]`, "i");
+const ITEM_MARKER = new RegExp(`\\[daily-intake:item:(${UUID})\\]`, "i");
+const ALERT_MARKER = new RegExp(`\\[daily-intake:alert:(${UUID})\\]`, "i");
 const UUID_ONLY = new RegExp(`^${UUID}$`, "i");
 
 export interface CalendarEventFields {
@@ -39,7 +39,7 @@ export function toCalendarEventFields(event: GoogleCalendarWindowEvent, timeZone
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return null;
 
   const description = event.description ?? "";
-  const itemRef = lowerUuid(event.privateProperties.homelabDailyItemId) ?? ITEM_MARKER.exec(description)?.[1]?.toLowerCase() ?? null;
+  const itemRef = lowerUuid(event.privateProperties.dailyIntakeItemId) ?? ITEM_MARKER.exec(description)?.[1]?.toLowerCase() ?? null;
   const alertRef = ALERT_MARKER.exec(description)?.[1]?.toLowerCase() ?? null;
 
   return {

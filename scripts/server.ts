@@ -1,4 +1,4 @@
-// Production server for Homelab Daily: `next start` plus the client allowlist (DASHBOARD_ALLOWED_CIDRS).
+// Production server for Daily Intake: `next start` plus the client allowlist (DASHBOARD_ALLOWED_CIDRS).
 // Usage: npm run start            Docker: node --import tsx scripts/server.ts
 //
 // Why not src/proxy.ts: Proxy only sees request headers. Next fills X-Forwarded-For from the socket

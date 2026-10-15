@@ -68,7 +68,7 @@ model WorkEvent {
   @@index([projectId, timestamp])
 }
 
-// ---------- Homelab Daily ----------
+// ---------- Daily Intake ----------
 
 enum Actor {
   user

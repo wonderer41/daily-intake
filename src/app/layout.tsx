@@ -25,7 +25,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Homelab Daily",
+  title: "Daily Intake",
   description: "Today's calendar, what I'm working on, and what's waiting or broken.",
 };
 

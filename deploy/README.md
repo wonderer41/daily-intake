@@ -1,4 +1,4 @@
-# Deploying Homelab Daily
+# Deploying Daily Intake
 
 The image is built in CI, never on the server: GitHub Actions builds the `Dockerfile`, pushes it to
 GHCR, and Komodo runs `deploy/compose.yml` on the host with that image.

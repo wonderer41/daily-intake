@@ -1,4 +1,4 @@
-// Homelab Daily — shared API contracts.
+// Daily Intake — shared API contracts.
 // Additive to src/types/contracts.ts. Import these types; do not redefine response shapes.
 // All timestamps are ISO 8601 strings in UTC. All "date" fields are local dates (YYYY-MM-DD)
 // in DASHBOARD_TIME_ZONE (default America/Denver).
