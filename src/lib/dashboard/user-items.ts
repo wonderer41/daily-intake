@@ -10,6 +10,7 @@ import { loadItemDto } from "./items";
 import { assertKnownIds, planReorder } from "./reorder";
 import { staleEditError } from "./user-conflict";
 import type { CreateItemInput, UpdateItemInput } from "./user-parse";
+import { dueOnChanged, toDueOn } from "./due";
 
 // Browser routes for checklist items (/api/cards/:id/items, /api/items/:id). The checkbox is a
 // PATCH { done } here; "now" is a PATCH { isCurrent: true }, which clears it on the card's other
@@ -66,6 +67,10 @@ function itemChanges(row: ChecklistItem, input: UpdateItemInput, now: Date): { f
   if (input.position !== undefined && input.position !== row.position) {
     fields.push("position");
     data.position = input.position;
+  }
+  if (dueOnChanged(row.dueOn, input.dueOn)) {
+    fields.push("dueOn");
+    data.dueOn = toDueOn(input.dueOn ?? null);
   }
   return { fields, data };
 }

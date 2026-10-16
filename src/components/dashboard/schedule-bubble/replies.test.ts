@@ -14,6 +14,7 @@ const item: ChecklistItemDto = {
   title: "Streak tracking",
   issueNumber: 13,
   sourceUrl: null,
+  dueOn: null,
   done: false,
   doneAt: null,
   isCurrent: false,

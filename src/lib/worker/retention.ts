@@ -7,6 +7,8 @@ export const RETENTION_DAYS = {
   scheduleRequest: 30,
   calendarEvent: 60,
   resolvedAlert: 30,
+  /** Weekly check-ins, counted from their week's Monday. */
+  weeklyCheckin: 56,
 } as const;
 
 export type RetentionCutoffs = Record<keyof typeof RETENTION_DAYS, Date>;
@@ -16,6 +18,7 @@ export interface RetentionResult {
   scheduleRequests: number;
   calendarEvents: number;
   resolvedAlerts: number;
+  weeklyCheckins: number;
 }
 
 /**
@@ -30,14 +33,16 @@ export function retentionCutoffs(now: Date, timeZone: string): RetentionCutoffs 
     scheduleRequest: cutoff(RETENTION_DAYS.scheduleRequest),
     calendarEvent: cutoff(RETENTION_DAYS.calendarEvent),
     resolvedAlert: cutoff(RETENTION_DAYS.resolvedAlert),
+    // weekOf is a bare @db.Date, stored as UTC midnight of that day.
+    weeklyCheckin: new Date(`${addDays(today, -RETENTION_DAYS.weeklyCheckin)}T00:00:00.000Z`),
   };
 }
 
 export function formatRetentionResult(result: RetentionResult): string {
-  return `deleted bannerSnapshots ${result.bannerSnapshots} · scheduleRequests ${result.scheduleRequests} · calendarEvents ${result.calendarEvents} · resolvedAlerts ${result.resolvedAlerts}`;
+  return `deleted bannerSnapshots ${result.bannerSnapshots} · scheduleRequests ${result.scheduleRequests} · calendarEvents ${result.calendarEvents} · resolvedAlerts ${result.resolvedAlerts} · weeklyCheckins ${result.weeklyCheckins}`;
 }
 
-type RetentionDb = Pick<PrismaClient, "bannerSnapshot" | "scheduleRequest" | "calendarEvent" | "alert" | "$transaction">;
+type RetentionDb = Pick<PrismaClient, "bannerSnapshot" | "scheduleRequest" | "calendarEvent" | "alert" | "weeklyCheckin" | "$transaction">;
 
 /**
  * Deletes what the retention rules allow. Nothing the page currently shows is removed: the newest
@@ -55,13 +60,14 @@ export async function runRetention(db: RetentionDb, now: Date, timeZone: string)
     )
   ).filter((row): row is { id: string } => row !== null);
 
-  const [bannerSnapshots, scheduleRequests, calendarEvents, resolvedAlerts] = await db.$transaction([
+  const [bannerSnapshots, scheduleRequests, calendarEvents, resolvedAlerts, weeklyCheckins] = await db.$transaction([
     db.bannerSnapshot.deleteMany({
       where: { capturedAt: { lt: cutoffs.bannerSnapshot }, id: { notIn: latestPerKind.map((row) => row.id) } },
     }),
     db.scheduleRequest.deleteMany({ where: { createdAt: { lt: cutoffs.scheduleRequest } } }),
     db.calendarEvent.deleteMany({ where: { endsAt: { lt: cutoffs.calendarEvent } } }),
     db.alert.deleteMany({ where: { resolvedAt: { not: null, lt: cutoffs.resolvedAlert } } }),
+    db.weeklyCheckin.deleteMany({ where: { weekOf: { lt: cutoffs.weeklyCheckin } } }),
   ]);
 
   return {
@@ -69,5 +75,6 @@ export async function runRetention(db: RetentionDb, now: Date, timeZone: string)
     scheduleRequests: scheduleRequests.count,
     calendarEvents: calendarEvents.count,
     resolvedAlerts: resolvedAlerts.count,
+    weeklyCheckins: weeklyCheckins.count,
   };
 }

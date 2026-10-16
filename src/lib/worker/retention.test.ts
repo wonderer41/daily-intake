@@ -42,16 +42,22 @@ test("runRetention deletes by the right fields and keeps the newest snapshot per
     scheduleRequest: deleter("scheduleRequest", 2),
     calendarEvent: deleter("calendarEvent", 5),
     alert: deleter("alert", 1),
+    weeklyCheckin: deleter("weeklyCheckin", 4),
     $transaction: async (operations: number[]) => operations.map((count) => ({ count })),
   };
 
   const result = await runRetention(db as unknown as Parameters<typeof runRetention>[0], now, DENVER);
-  assert.deepEqual(result, { bannerSnapshots: 3, scheduleRequests: 2, calendarEvents: 5, resolvedAlerts: 1 });
+  assert.deepEqual(result, { bannerSnapshots: 3, scheduleRequests: 2, calendarEvents: 5, resolvedAlerts: 1, weeklyCheckins: 4 });
   assert.deepEqual(calls.bannerSnapshot, {
     where: { capturedAt: { lt: new Date("2026-09-30T06:00:00.000Z") }, id: { notIn: ["keep-gmail", "keep-stocks"] } },
   });
   assert.deepEqual(calls.scheduleRequest, { where: { createdAt: { lt: new Date("2026-09-14T06:00:00.000Z") } } });
   assert.deepEqual(calls.calendarEvent, { where: { endsAt: { lt: new Date("2026-08-15T06:00:00.000Z") } } });
   assert.deepEqual(calls.alert, { where: { resolvedAt: { not: null, lt: new Date("2026-09-14T06:00:00.000Z") } } });
-  assert.equal(formatRetentionResult(result), "deleted bannerSnapshots 3 · scheduleRequests 2 · calendarEvents 5 · resolvedAlerts 1");
+  // 8 weeks of check-ins, by their Monday (a bare date).
+  assert.deepEqual(calls.weeklyCheckin, { where: { weekOf: { lt: new Date("2026-08-19T00:00:00.000Z") } } });
+  assert.equal(
+    formatRetentionResult(result),
+    "deleted bannerSnapshots 3 · scheduleRequests 2 · calendarEvents 5 · resolvedAlerts 1 · weeklyCheckins 4",
+  );
 });

@@ -3,6 +3,7 @@ import {
   arrayOf,
   boolean,
   enumValue,
+  fieldPath,
   integer,
   invalid,
   isoDateTime,
@@ -78,6 +79,8 @@ export interface CardInput {
   title: string;
   repoFullName: string | null | undefined;
   milestoneTitle: string | null | undefined;
+  /** YYYY-MM-DD; null clears it. */
+  dueOn: string | null | undefined;
   /** A sprint key or id:<uuid>; null unlinks the card. */
   sprintKey: RowRef | null | undefined;
   status: CardStatus | undefined;
@@ -93,6 +96,7 @@ export function parseUpsertCard(body: unknown): CardInput {
     "title",
     "repoFullName",
     "milestoneTitle",
+    "dueOn",
     "sprintKey",
     "status",
     "position",
@@ -107,6 +111,7 @@ export function parseUpsertCard(body: unknown): CardInput {
     title: requiredString(o.title, "title", 160),
     repoFullName,
     milestoneTitle: optionalString(o.milestoneTitle, "milestoneTitle", 160),
+    dueOn: (o.dueOn === undefined || o.dueOn === null ? o.dueOn : localDate(o.dueOn, "dueOn")) as string | null | undefined,
     sprintKey: o.sprintKey === undefined || o.sprintKey === null ? o.sprintKey : parseRef(o.sprintKey, "sprint", "sprintKey"),
     status: optional(o.status, (v) => enumValue(v, "status", CARD_STATUSES)),
     position: position(o.position),
@@ -121,6 +126,8 @@ export interface ItemInput {
   title: string;
   issueNumber: number | null | undefined;
   sourceUrl: string | null | undefined;
+  /** YYYY-MM-DD; null clears it (the card's dueOn applies). */
+  dueOn: string | null | undefined;
   done: boolean | undefined;
   isCurrent: boolean | undefined;
   position: number | undefined;
@@ -129,11 +136,12 @@ export interface ItemInput {
 }
 
 export function parseUpsertItem(body: unknown): ItemInput {
-  const o = strictObject(body, ROOT, ["title", "issueNumber", "sourceUrl", "done", "isCurrent", "position", "version", "force"]);
+  const o = strictObject(body, ROOT, ["title", "issueNumber", "sourceUrl", "dueOn", "done", "isCurrent", "position", "version", "force"]);
   return {
     title: requiredString(o.title, "title", 200),
     issueNumber: o.issueNumber === null ? null : optional(o.issueNumber, (v) => integer(v, "issueNumber", { min: 1, max: MAX_VERSION })),
     sourceUrl: optionalHttpUrl(o.sourceUrl, "sourceUrl"),
+    dueOn: (o.dueOn === undefined || o.dueOn === null ? o.dueOn : localDate(o.dueOn, "dueOn")) as string | null | undefined,
     done: optional(o.done, (v) => boolean(v, "done")),
     isCurrent: optional(o.isCurrent, (v) => boolean(v, "isCurrent")),
     position: position(o.position),
@@ -249,4 +257,33 @@ export function parseUpsertWaitingItem(body: unknown): WaitingItemInput {
     url: optionalHttpUrl(o.url, "url"),
     position: optional(o.position, (v) => integer(v, "position", { min: 0, max: 1000 })),
   };
+}
+
+export interface CheckinInput {
+  summary: string;
+  items: { key: string; text: string; itemRef: RowRef | null }[];
+}
+
+const CHECKIN_ITEM_KEY = /^[a-z0-9][a-z0-9-]{0,99}$/;
+const CHECKIN_MAX_ITEMS = 10;
+
+/** PUT /api/hermes/checkin/:date — the summary plus up to 10 focus lines, each with a key unique in the list. */
+export function parseUpsertCheckin(body: unknown): CheckinInput {
+  const o = strictObject(body, ROOT, ["summary", "items"]);
+  const items = arrayOf(o.items, "items", CHECKIN_MAX_ITEMS, (value, field) => {
+    const item = strictObject(value, field, ["key", "text", "itemRef"]);
+    const key = requiredString(item.key, fieldPath(field, "key"), 100);
+    if (!CHECKIN_ITEM_KEY.test(key)) invalid(fieldPath(field, "key"), "must be lowercase letters, digits and dashes, e.g. streak-tracking");
+    return {
+      key,
+      text: requiredString(item.text, fieldPath(field, "text"), 200),
+      itemRef: item.itemRef === undefined || item.itemRef === null ? null : parseRef(item.itemRef, "item", fieldPath(field, "itemRef")),
+    };
+  });
+  const seen = new Set<string>();
+  for (const [index, item] of items.entries()) {
+    if (seen.has(item.key)) invalid(`items[${index}].key`, "repeats an earlier key");
+    seen.add(item.key);
+  }
+  return { summary: requiredString(o.summary, "summary", 1000), items };
 }

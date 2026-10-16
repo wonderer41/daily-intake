@@ -7,7 +7,7 @@ export interface ChipProps extends ComponentPropsWithoutRef<"span"> {
    * open         light text, light border ("Open")
    * neutral      muted text, faint border (counts, "done", anything secondary)
    */
-  tone?: "in-progress" | "open" | "neutral";
+  tone?: "in-progress" | "open" | "neutral" | "overdue";
 }
 
 /** JetBrains Mono 12px, padding 3px 8px, square. The word carries the meaning, never the color alone. */

@@ -4,6 +4,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import type { BannerDto } from "@/types/dashboard-contracts";
 import { useDashboard } from "../context";
 import "./banner.css";
+import { CheckinSlide } from "./banner/checkin-slide";
 import { DailyMessageSlide } from "./banner/daily-message-slide";
 import { formatClockOrDay } from "./banner/format";
 import { GmailSlide } from "./banner/gmail-slide";
@@ -26,6 +27,8 @@ interface SlideBodyProps {
 
 function SlideBody({ id, banner, timeZone, now }: SlideBodyProps) {
   switch (id) {
+    case "checkin":
+      return banner.checkin ? <CheckinSlide checkin={banner.checkin} /> : null;
     case "message":
       return banner.dailyMessage ? <DailyMessageSlide message={banner.dailyMessage} /> : null;
     case "gmail":

@@ -35,7 +35,7 @@ test("unknown fields are rejected by name", () => {
 test("updates need the version the page last read", () => {
   assert.equal(field(() => parseUpdateCard({ title: "x" })), "version");
   assert.equal(field(() => parseUpdateItem({ version: 0, done: true })), "version");
-  assert.deepEqual(parseUpdateItem({ version: 3, done: true }), { version: 3, done: true, title: undefined, isCurrent: undefined, position: undefined });
+  assert.deepEqual(parseUpdateItem({ version: 3, done: true }), { version: 3, done: true, title: undefined, isCurrent: undefined, position: undefined, dueOn: undefined });
 });
 
 test("ids must be UUIDs; they come back lowercased", () => {

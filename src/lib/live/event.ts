@@ -20,7 +20,7 @@ const LIVE_EVENT_TYPES: Record<LiveEvent["type"], true> = {
   "day.rollover": true,
 };
 
-const BANNER_KINDS = new Set(["gmail", "orphans", "scan", "stocks", "dailyMessage"]);
+const BANNER_KINDS = new Set(["gmail", "orphans", "scan", "stocks", "dailyMessage", "checkin"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

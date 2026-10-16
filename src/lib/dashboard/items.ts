@@ -8,6 +8,7 @@ import type { ChecklistItemDto, HermesWriteResult } from "@/types/dashboard-cont
 import { POSITION_GAP } from "./cards";
 import { assertWritable, conflictError, retryOnUniqueViolation, VersionConflict } from "./concurrency";
 import { itemInclude, toChecklistItemDto } from "./dto";
+import { dueOnChanged, toDueOn } from "./due";
 
 export async function loadItemDto(id: string, now = new Date()): Promise<ChecklistItemDto> {
   const row = await prisma.checklistItem.findUniqueOrThrow({ where: { id }, include: itemInclude(now) });
@@ -51,6 +52,10 @@ function itemChanges(
   set("title", input.title);
   set("issueNumber", input.issueNumber);
   set("sourceUrl", input.sourceUrl);
+  if (dueOnChanged(row.dueOn, input.dueOn)) {
+    fields.push("dueOn");
+    data.dueOn = toDueOn(input.dueOn ?? null);
+  }
   set("isCurrent", input.isCurrent);
   set("position", input.position);
   set("done", input.done);
@@ -102,6 +107,7 @@ export async function upsertItem(
               title: input.title,
               issueNumber: input.issueNumber ?? null,
               sourceUrl: input.sourceUrl ?? null,
+              dueOn: toDueOn(input.dueOn ?? null),
               done,
               doneAt: done ? now : null,
               isCurrent,

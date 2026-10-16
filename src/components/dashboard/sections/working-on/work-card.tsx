@@ -4,12 +4,14 @@ import { Chip } from "@/components/ui/chip";
 import { ChatIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { InnerCard } from "@/components/ui/inner-card";
 import { ProgressSegments } from "@/components/ui/progress-segments";
-import type { ChecklistItemDto, ItemProgressDto, UpdateItemRequest, WorkCardDto } from "@/types/dashboard-contracts";
+import { localDateString } from "@/lib/time/zone";
+import type { ChecklistItemDto, ItemProgressDto, UpdateCardRequest, UpdateItemRequest, WorkCardDto } from "@/types/dashboard-contracts";
 import { fetchJson, isAbortError, isApiRequestError } from "../../api";
 import { useDashboard, type TodayUpdater } from "../../context";
 import { ChecklistRow } from "./checklist-row";
-import { cardDisplayTitle, countLine, issueRef } from "./labels";
-import { confirmProgress, dropProgress, setItemDone } from "./optimistic";
+import { DueControl } from "./due-control";
+import { cardDisplayTitle, countLine, dueLabel, effectiveDue, issueRef } from "./labels";
+import { confirmProgress, dropProgress, setCardDue, setItemDone, setItemDue } from "./optimistic";
 
 /** DOM id of a card's title button (focus fallback). */
 export function cardToggleId(cardId: string): string {
@@ -41,12 +43,18 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
   const listId = useId();
   const current = card.current ? card.items.find((item) => item.id === card.current?.itemId) ?? null : null;
   const numbered = card.items.some((item) => item.issueNumber !== null);
+  const today = localDateString(new Date(now), timeZone);
+  const cardDue = card.dueOn ? dueLabel(card.dueOn, today) : null;
+  const currentDueOn = current ? effectiveDue(current, card) : null;
+  const currentDue = currentDueOn ? dueLabel(currentDueOn, today) : null;
 
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Newest version the server returned per item, and the item's last write (writes go in order). */
   const versions = useRef(new Map<string, number>());
   const chains = useRef(new Map<string, Promise<unknown>>());
+  /** Newest card version the server returned (deadline edits). */
+  const cardVersion = useRef(card.version);
 
   useEffect(
     () => () => {
@@ -68,23 +76,43 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
     else showNotice("Couldn't save that. Try again.");
   }
 
-  function toggleItem(item: ChecklistItemDto, done: boolean) {
-    if (done && bubbleItemId === item.id) onCloseBubble();
+  /** PATCH an item after any earlier write to it, with the newest version known. */
+  function saveItem(item: ChecklistItemDto, change: Omit<UpdateItemRequest, "version">, update: TodayUpdater) {
     const previous = chains.current.get(item.id);
     const request = async () => {
       if (previous) await previous.catch(() => undefined);
-      const body: UpdateItemRequest = { version: Math.max(item.version, versions.current.get(item.id) ?? 0), done };
+      const body: UpdateItemRequest = { version: Math.max(item.version, versions.current.get(item.id) ?? 0), ...change };
       const saved = await fetchJson<ChecklistItemDto>(`/api/items/${encodeURIComponent(item.id)}`, { method: "PATCH", json: body });
       versions.current.set(item.id, saved.version);
       return saved;
     };
-    const promise = mutate((today) => setItemDone(today, card.id, item.id, done, now), request);
+    const promise = mutate(update, request);
     chains.current.set(item.id, promise);
     promise
       .then(() => showNotice(null), showError)
       .finally(() => {
         if (chains.current.get(item.id) === promise) chains.current.delete(item.id);
       });
+  }
+
+  function toggleItem(item: ChecklistItemDto, done: boolean) {
+    if (done && bubbleItemId === item.id) onCloseBubble();
+    saveItem(item, { done }, (today) => setItemDone(today, card.id, item.id, done, now));
+  }
+
+  function setItemDeadline(item: ChecklistItemDto, dueOn: string | null) {
+    saveItem(item, { dueOn }, (today) => setItemDue(today, card.id, item.id, dueOn));
+  }
+
+  function setCardDeadline(dueOn: string | null) {
+    const body: UpdateCardRequest = { version: Math.max(card.version, cardVersion.current), dueOn };
+    mutate(
+      (today) => setCardDue(today, card.id, dueOn),
+      () => fetchJson<WorkCardDto>(`/api/cards/${encodeURIComponent(card.id)}`, { method: "PATCH", json: body }),
+    ).then((saved) => {
+      cardVersion.current = saved.version;
+      showNotice(null);
+    }, showError);
   }
 
   function resolveNote(item: ChecklistItemDto, note: ItemProgressDto, action: "confirm" | "dismiss") {
@@ -118,7 +146,10 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
 
       <div className="flex flex-col gap-2">
         <div className="flex justify-between gap-3 text-[14px]">
-          <span className="min-w-0 text-text">{card.milestoneTitle ? `Milestone · ${card.milestoneTitle}` : null}</span>
+          <span className="flex min-w-0 flex-wrap items-center gap-2 text-text">
+            {card.milestoneTitle ? <span>Milestone · {card.milestoneTitle}</span> : null}
+            {cardDue ? <Chip tone={cardDue.overdue && card.progress.done < card.progress.total ? "overdue" : "neutral"}>{cardDue.text}</Chip> : null}
+          </span>
           <span className="shrink-0 font-mono text-text-strong">{countLine(card)}</span>
         </div>
         <ProgressSegments segments={card.items.map((item) => item.done)} label={`${title} progress`} />
@@ -142,6 +173,7 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
                   <span className="font-mono text-[12px] text-text-muted">{card.current.label}</span>
                   {issueRef(current) ? <span className="font-mono text-[13px] text-lily-pink">{issueRef(current)}</span> : null}
                   <span className="min-w-0 grow text-[16px] text-text-strong">{current.title}</span>
+                  {currentDue ? <Chip tone={currentDue.overdue ? "overdue" : "neutral"}>{currentDue.text}</Chip> : null}
                   <Chip tone={card.current.label === "now" ? "in-progress" : "open"}>{card.current.label === "now" ? "In progress" : "Open"}</Chip>
                 </>
               ) : (
@@ -171,6 +203,12 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
       {/* Checklist: shown while open. */}
       <div id={listId} className="wo-reveal" data-expanded={open ? "" : undefined}>
         <div inert={!open}>
+          {canSchedule ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(216,226,220,0.2)] py-2">
+              <span className="text-[14px] text-text-muted">{card.dueOn ? "Card deadline" : "No card deadline"}</span>
+              <DueControl value={card.dueOn} name={title} onChange={setCardDeadline} />
+            </div>
+          ) : null}
           {card.items.length === 0 ? (
             <p className="m-0 border-t border-[rgba(216,226,220,0.2)] pt-3 text-[14px] text-text-muted">No checklist items yet.</p>
           ) : (
@@ -186,7 +224,9 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
                   bubbleOpen={bubbleItemId === item.id}
                   now={now}
                   timeZone={timeZone}
+                  today={today}
                   onToggle={toggleItem}
+                  onDueChange={setItemDeadline}
                   onSchedule={(itemId) => onSchedule(itemId, false)}
                   onCloseBubble={onCloseBubble}
                   onResolveNote={resolveNote}

@@ -1,9 +1,10 @@
 import type { BannerDto } from "@/types/dashboard-contracts";
 
-/** The four slides, in display order. "infra" is Orphans + Daily scan. */
-export type SlideId = "message" | "gmail" | "infra" | "stocks";
+/** The slides, in display order. "infra" is Orphans + Daily scan; "checkin" leads while there is one. */
+export type SlideId = "checkin" | "message" | "gmail" | "infra" | "stocks";
 
 export const SLIDE_LABELS: Record<SlideId, string> = {
+  checkin: "Weekly check-in",
   message: "Daily message",
   gmail: "Gmail",
   infra: "Orphans and daily scan",
@@ -13,6 +14,7 @@ export const SLIDE_LABELS: Record<SlideId, string> = {
 /** Slides that have data, in order. A slide with no data is skipped. */
 export function availableSlides(banner: BannerDto): SlideId[] {
   const slides: SlideId[] = [];
+  if (banner.checkin) slides.push("checkin");
   if (banner.dailyMessage && banner.dailyMessage.text.trim() !== "") slides.push("message");
   if (banner.gmail) slides.push("gmail");
   if (banner.orphans || banner.scan) slides.push("infra");
@@ -22,6 +24,7 @@ export function availableSlides(banner: BannerDto): SlideId[] {
 
 function capturedTimes(banner: BannerDto, id: SlideId): string[] {
   switch (id) {
+    case "checkin": // shows its own "written / updated" time
     case "message":
       return []; // a message has a date, not a snapshot time
     case "gmail":

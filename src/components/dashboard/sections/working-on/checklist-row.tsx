@@ -5,7 +5,8 @@ import { Chip } from "@/components/ui/chip";
 import { ChatIcon } from "@/components/ui/icons";
 import type { ChecklistItemDto, ItemProgressDto } from "@/types/dashboard-contracts";
 import { ScheduleBubble } from "../../schedule-bubble";
-import { issueRef, itemName, timeTag } from "./labels";
+import { DueControl } from "./due-control";
+import { dueLabel, issueRef, itemName, timeTag } from "./labels";
 import { PushNote } from "./push-note";
 
 /** DOM id of an item's Schedule button (focus goes back here after a bubble opened from the Hermes row). */
@@ -24,17 +25,24 @@ export interface ChecklistRowProps {
   bubbleOpen: boolean;
   now: string;
   timeZone: string;
+  /** Today's local date (YYYY-MM-DD), for "overdue". */
+  today: string;
   onToggle: (item: ChecklistItemDto, done: boolean) => void;
   onSchedule: (itemId: string) => void;
+  onDueChange: (item: ChecklistItemDto, dueOn: string | null) => void;
   onCloseBubble: () => void;
   onResolveNote: (item: ChecklistItemDto, note: ItemProgressDto, action: "confirm" | "dismiss") => void;
 }
 
-/** One checklist row: checkbox (whole row is the label), number, title, time tag, Schedule, push notes, bubble. */
+/**
+ * One checklist row: checkbox (whole row is the label), number, title, due and time tags, Due, Schedule,
+ * push notes, bubble. The due tag shows the item's own deadline; the card's shows on the card.
+ */
 export function ChecklistRow(props: ChecklistRowProps) {
   const { item, cardId, cardTitle, numbered, canSchedule, bubbleOpen, now, timeZone } = props;
   const name = itemName(item);
   const showSchedule = !item.done && canSchedule;
+  const due = item.dueOn && !item.done ? dueLabel(item.dueOn, props.today) : null;
   const rowRef = useRef<HTMLLIElement>(null);
 
   // A resolved push note (and the focused button in it) disappears at once: keep focus on the row.
@@ -50,12 +58,14 @@ export function ChecklistRow(props: ChecklistRowProps) {
           {numbered ? <span className="wo-num w-9 shrink-0 font-mono text-[13px]">{issueRef(item)}</span> : null}
           <span className="min-w-0 grow text-[16px] [overflow-wrap:anywhere]">{item.title}</span>
         </CheckboxRow>
+        {due ? <Chip tone={due.overdue ? "overdue" : "neutral"}>{due.text}</Chip> : null}
         {item.scheduled ? (
           <Chip tone="in-progress">
             <span className="sr-only">Booked </span>
             {timeTag(item.scheduled, now, timeZone)}
           </Chip>
         ) : null}
+        {showSchedule ? <DueControl value={item.dueOn} name={name} onChange={(dueOn) => props.onDueChange(item, dueOn)} /> : null}
         {showSchedule ? (
           <Button id={scheduleButtonId(item.id)} variant="ghost" aria-expanded={bubbleOpen} onClick={() => props.onSchedule(item.id)}>
             <ChatIcon size={15} />

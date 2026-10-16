@@ -48,3 +48,33 @@ export function timeTag(scheduled: NonNullable<ChecklistItemDto["scheduled"]>, n
 export function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
+
+function utcDay(date: string): number {
+  return Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)));
+}
+
+export interface DueLabel {
+  /** "overdue 2d", "due today", "due tomorrow", "due Fri", "due Oct 31". */
+  text: string;
+  overdue: boolean;
+}
+
+/**
+ * How a deadline reads next to `today` (both YYYY-MM-DD, local). A deadline is overdue once its day is
+ * over; within the coming week it shows the weekday, further out the date.
+ */
+export function dueLabel(dueOn: string, today: string): DueLabel {
+  const days = Math.round((utcDay(dueOn) - utcDay(today)) / 86_400_000);
+  if (days < 0) return { text: `overdue ${-days}d`, overdue: true };
+  if (days === 0) return { text: "due today", overdue: false };
+  if (days === 1) return { text: "due tomorrow", overdue: false };
+  const at = new Date(utcDay(dueOn));
+  const options: Intl.DateTimeFormatOptions = days < 7 ? { weekday: "short", timeZone: "UTC" } : { month: "short", day: "numeric", timeZone: "UTC" };
+  return { text: `due ${new Intl.DateTimeFormat("en-US", options).format(at)}`, overdue: false };
+}
+
+/** An item's deadline: its own, else its card's. */
+export function effectiveDue(item: Pick<ChecklistItemDto, "dueOn">, card: Pick<WorkCardDto, "dueOn">): string | null {
+  return item.dueOn ?? card.dueOn;
+}
+

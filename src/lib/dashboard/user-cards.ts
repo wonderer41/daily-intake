@@ -10,6 +10,7 @@ import { assertKnownIds, planReorder } from "./reorder";
 import { staleEditError } from "./user-conflict";
 import type { CreateCardInput, UpdateCardInput } from "./user-parse";
 import { assertSprintExists } from "./user-sprints";
+import { dueOnChanged, toDueOn } from "./due";
 
 // Browser routes for Working-on cards (/api/cards). Cards are never deleted here: the page
 // archives them with PATCH { status: "archived" } (soft delete).
@@ -62,6 +63,10 @@ function cardChanges(row: WorkCard, input: UpdateCardInput): { fields: string[];
   set("sprintId", input.sprintId);
   set("position", input.position);
   set("milestoneTitle", input.milestoneTitle);
+  if (dueOnChanged(row.dueOn, input.dueOn)) {
+    fields.push("dueOn");
+    data.dueOn = toDueOn(input.dueOn ?? null);
+  }
   return { fields, data };
 }
 

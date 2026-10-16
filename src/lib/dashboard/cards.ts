@@ -9,6 +9,7 @@ import { assertWritable, conflictError, retryOnUniqueViolation, VersionConflict 
 import { cardInclude, toWorkCardDto } from "./dto";
 import { mergeMeta, sameJson } from "./json";
 import { findSprintIdByKey } from "./sprints";
+import { dueOnChanged, toDueOn } from "./due";
 
 /** Positions are integers with gaps of 1000. */
 export const POSITION_GAP = 1000;
@@ -48,6 +49,10 @@ function cardChanges(
   set("title", input.title);
   set("repoFullName", input.repoFullName);
   set("milestoneTitle", input.milestoneTitle);
+  if (dueOnChanged(row.dueOn, input.dueOn)) {
+    fields.push("dueOn");
+    data.dueOn = toDueOn(input.dueOn ?? null);
+  }
   set("sprintId", sprintId);
   set("status", input.status);
   set("position", input.position);
@@ -91,6 +96,7 @@ export async function upsertCard(
               title: input.title,
               repoFullName: input.repoFullName ?? null,
               milestoneTitle: input.milestoneTitle ?? null,
+              dueOn: toDueOn(input.dueOn ?? null),
               sprintId: sprintId ?? null,
               status: input.status ?? "active",
               position: input.position ?? (await nextCardPosition(tx)),

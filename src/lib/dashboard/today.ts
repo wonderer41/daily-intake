@@ -8,6 +8,7 @@ import { getTimeline } from "@/lib/timeline/query";
 import type { BannerDto, BannerPayload, SourceStateDto, TimelineResponse, TodayResponse } from "@/types/dashboard-contracts";
 import { parseSnapshotPayload } from "./banner-payload";
 import { alertInclude, type AlertRow, cardInclude, type CardRow, dateOnly, toAlertDto, toDbDate, toSprintDto, toWorkCardDto } from "./dto";
+import { type CheckinRow, findCheckin, toCheckinDto, weekOf } from "./checkin";
 import { listVisibleWaitingItems, toWaitingItemDto } from "./waiting";
 
 // GET /api/today: everything the page needs in one call.
@@ -47,6 +48,8 @@ export interface TodayParts {
   seerr: SeerrCheck;
   /** Custom "Waiting on you" items with count > 0, in position order. */
   waitingItems: WaitingItem[];
+  /** The check-in for the week `date` falls in, if Hermes wrote one. */
+  checkin: CheckinRow | null;
   links: { sonarrUrl: string | null; radarrUrl: string | null; seerrUrl: string | null };
 }
 
@@ -131,6 +134,17 @@ export function linkFromEnv(value: string | undefined): string | null {
   }
 }
 
+/** Items done / total across the active sprint's cards (the check-in's headline). */
+function sprintProgress(parts: TodayParts): { done: number; total: number } | null {
+  const sprint = parts.activeSprint;
+  if (!sprint) return null;
+  const cards = parts.cards.filter((card) => card.sprintId === sprint.id);
+  return {
+    done: cards.reduce((sum, card) => sum + card.items.filter((item) => item.done).length, 0),
+    total: cards.reduce((sum, card) => sum + card.items.length, 0),
+  };
+}
+
 /** Builds the response from what was read. Pure. */
 export function assembleToday(parts: TodayParts): TodayResponse {
   const banner: BannerDto = {
@@ -141,6 +155,7 @@ export function assembleToday(parts: TodayParts): TodayResponse {
     orphans: bannerSlide(parts.snapshots, "orphans"),
     scan: bannerSlide(parts.snapshots, "scan"),
     stocks: bannerSlide(parts.snapshots, "stocks"),
+    checkin: parts.checkin ? toCheckinDto(parts.checkin, sprintProgress(parts)) : null,
   };
   const localToday = localDateString(parts.now, parts.timeZone);
 
@@ -195,7 +210,7 @@ async function latestSnapshots(): Promise<SnapshotRow[]> {
 
 export async function getToday(date: string, now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<TodayResponse> {
   const timeZone = dashboardTimeZone(env);
-  const [timeline, activeSprint, cards, alerts, snapshots, dailyMessage, seerr, waitingItems] = await Promise.all([
+  const [timeline, activeSprint, cards, alerts, snapshots, dailyMessage, seerr, waitingItems, checkin] = await Promise.all([
     getTimeline(date, now, env),
     // D8 allows one active sprint; if a race ever leaves two, show the newest.
     prisma.sprint.findFirst({ where: { status: "active" }, orderBy: [{ startsOn: "desc" }, { updatedAt: "desc" }] }),
@@ -209,6 +224,7 @@ export async function getToday(date: string, now = new Date(), env: NodeJS.Proce
     prisma.dailyMessage.findUnique({ where: { date: toDbDate(date) } }),
     liveSeerrPending(now, env),
     listVisibleWaitingItems(),
+    findCheckin(weekOf(date)),
   ]);
 
   return assembleToday({
@@ -223,6 +239,7 @@ export async function getToday(date: string, now = new Date(), env: NodeJS.Proce
     dailyMessage,
     seerr,
     waitingItems,
+    checkin,
     links: {
       sonarrUrl: linkFromEnv(env.SONARR_URL),
       radarrUrl: linkFromEnv(env.RADARR_URL),

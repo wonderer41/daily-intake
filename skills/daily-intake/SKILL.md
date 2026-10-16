@@ -1,6 +1,6 @@
 ---
 name: daily-intake
-description: Read and update the user's Daily Intake dashboard through its HTTP API. Covers Working-on cards, checklist items, sprints, push-progress notes on items, banner snapshots (gmail, orphans, scan), the stocks watchlist, Broken-panel alerts, custom "Waiting on you" items, the daily message, and refreshing the timeline after calendar changes.
+description: Read and update the user's Daily Intake dashboard through its HTTP API. Covers Working-on cards, checklist items, sprints, push-progress notes on items, banner snapshots (gmail, orphans, scan), the stocks watchlist, Broken-panel alerts, custom "Waiting on you" items, the weekly check-in, the daily message, and refreshing the timeline after calendar changes.
 ---
 
 # Daily Intake dashboard
@@ -25,11 +25,12 @@ The rest of this file shows each request as `METHOD path` plus a body.
 
 - `date` and `timeZone`. `date` is today in the dashboard's time zone; use that zone for every date you send.
 - `activeSprint` and `sprints`, which hold the planned and active sprints. Each sprint has `id`, `key`, `name`, `startsOn`, `endsOn`, `status`, `daysLeft` and `version`.
-- `cards`, which holds every card that is not archived, in page order. Each card has `id`, `key`, `title`, `status`, `sprintId`, `sprintKey`, `repoFullName`, `milestoneTitle`, `hermesSuggestion`, `progress {done,total}`, `current {itemId,itemKey,title,label}`, `version` and `items[]`.
-  - Each item has `id`, `key`, `title`, `issueNumber`, `done`, `isCurrent`, `position`, `version` and `progress[]`.
+- `cards`, which holds every card that is not archived, in page order. Each card has `id`, `key`, `title`, `dueOn`, `status`, `sprintId`, `sprintKey`, `repoFullName`, `milestoneTitle`, `hermesSuggestion`, `progress {done,total}`, `current {itemId,itemKey,title,label}`, `version` and `items[]`.
+  - Each item has `id`, `key`, `title`, `issueNumber`, `dueOn`, `done`, `isCurrent`, `position`, `version` and `progress[]`.
   - An item's `progress[]` lists the push notes that are still pending, as `{kind, commitSha}`.
 - `alerts`, which holds the open alerts (`dedupeKey`, `title`, `severity` and so on).
 - `dailyMessage` and `watchlist`.
+- `checkin`, this week's check-in if you wrote one: `weekOf`, `summary`, `updatedAt` and `items` (`key`, `text`, `done`, `itemId`, `itemKey`).
 - `waiting`, which holds the custom "Waiting on you" items (`key`, `title`, `count`, `detail`, `url`, `position`), zero counts included.
 
 Read the state before every batch of writes. Reuse what is already there. Never create a second card or item for something that already exists, even if it has no key.
@@ -105,7 +106,8 @@ Body conventions:
 - `status` is one of `active`, `paused`, `done` or `archived`.
 - `position` is an integer. New cards go to the end of the column.
 - `sprintKey` is a sprint key or `id:<uuid>`. Send `null` to unlink the card from its sprint. If the sprint doesn't exist, the answer is `404`.
-- `repoFullName` is `owner/repo`. Set it on cards that track a GitHub repo, because push notes (section 6) only apply to those cards.
+- `repoFullName` is `owner/repo`. Set it on cards that track a GitHub repo, because push notes (section 6) only apply to those cards. Leave it out for plain to-do cards that aren't tied to a repo.
+- `dueOn` is the card's deadline as `YYYY-MM-DD` (a local date; overdue once that day is over). Send `null` to clear it. Only set it when the user gave you a deadline.
 - `hermesSuggestion` is one short line shown on the collapsed card, such as `Block 90 min tonight for #12?`. Clear it with `null` once the work is booked or the suggestion is stale.
 - `meta` is merged shallowly into what is stored: keys you send overwrite, a key set to `null` is removed, and keys you leave out stay. The limit is 4 KB.
   - `meta.note` is shown in the card's meta line. Use it for a short phase or status, such as `"design phase"`.
@@ -117,7 +119,8 @@ Body conventions:
 ```
 
 - `title` is at most 200 characters.
-- The other fields are `issueNumber`, `sourceUrl` (http or https), `isCurrent`, `position`, `done` (see section 3), `version` and `force`.
+- The other fields are `issueNumber`, `sourceUrl` (http or https), `dueOn`, `isCurrent`, `position`, `done` (see section 3), `version` and `force`.
+- `dueOn` is the item's own deadline (`YYYY-MM-DD`, or `null` to clear). An item without one falls under its card's `dueOn`. The user can also set deadlines on the page, and their edits win (section 3).
 - `isCurrent` marks the "now" item. If no item is current, the page shows the first unchecked item as "next".
 - If you put an existing item under a different card, it moves to that card. That is a change, so it needs the item's `version`.
 - The card must exist before you add items to it, or the answer is `404`.
@@ -222,6 +225,34 @@ Besides Gmail, Seerr and orphan review, the "Waiting on you" panel shows any cus
 - The page hides an item while its `count` is 0, so update the count as things change instead of deleting and re-creating it.
 - `DELETE /api/hermes/waiting/<key>` removes an item for good, when the user no longer wants it tracked.
 - Items have no version: the latest push wins, and sending the same values again changes nothing.
+
+## 9c. Weekly check-in
+
+Write the check-in on **Wednesday** and update it on **Friday** (the user's schedule for you decides the time). From when you write it until Sunday night it is the first slide on the banner, and the user checks lines off on the page.
+
+`PUT /api/hermes/checkin/<YYYY-MM-DD>` (any day of the week; it is stored under that week's Monday)
+
+```json
+{
+  "summary": "You're ahead on study-sessions, but orphan-cleanup hasn't moved since Monday and its review is overdue.",
+  "items": [
+    { "key": "bdmv-review", "text": "Review the 4 BDMV folders (~1 h, overdue)", "itemRef": "hermes:item:orphan-cleanup:review-bdmvs" },
+    { "key": "streak-tracking", "text": "#13 Streak tracking (~3 h, Thursday evening is free)", "itemRef": "github:issue:example-user/study-sessions#13" },
+    { "key": "call-isp", "text": "Call the ISP about Monday's outage" }
+  ]
+}
+```
+
+How to build it:
+
+1. `GET /api/hermes/state`: the active sprint (`daysLeft`), every card and item (`done`, `dueOn`), open alerts, and `checkin` if one exists for this week (with what the user already checked).
+2. Read the user's calendar for the rest of the week to find free time.
+3. `summary`: 1–3 honest sentences in your own voice. Say how the week is going, and name anything overdue first. At most 1000 characters.
+4. `items`: up to 5 lines (10 at most), most important first: overdue and due-soon items, then the active sprint's current items, then open alerts. Add a time estimate and a free slot from the calendar when it helps. Each `text` is at most 200 characters.
+5. When a line is one of the cards' checklist items, set `itemRef` (its key or `id:<uuid>`). The line then shares that item's check: checking it in either place checks both. Leave `itemRef` out for anything that isn't on a card.
+6. `key` is your name for the line within the week (lowercase letters, digits, dashes). Keep the same key for the same thing when you update the check-in.
+
+On Friday, read `checkin` from the state first. Re-send the lines that still matter with the **same keys** (their checks are kept), drop what no longer matters, and add suggestions for the weekend. The list you send replaces the old one; lines you leave out are removed. Never mark lines done: checks belong to the user. Sending the same check-in again changes nothing.
 
 ## 10. Daily message
 

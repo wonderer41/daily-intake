@@ -45,6 +45,7 @@ function item(id: string, position: number, done: boolean, isCurrent = false): C
     title: `Item ${id}`,
     issueNumber: null,
     sourceUrl: null,
+    dueOn: null,
     done,
     doneAt: done ? AT : null,
     isCurrent,
@@ -65,6 +66,7 @@ function card(id: string, position: number, items: CardRow["items"]): CardRow {
     title: `Card ${id}`,
     repoFullName: null,
     milestoneTitle: null,
+    dueOn: null,
     sprintId: sprint.id,
     projectId: null,
     status: "active",
@@ -125,6 +127,7 @@ function parts(overrides: Partial<TodayParts> = {}): TodayParts {
     dailyMessage: { date: new Date("2026-10-14T00:00:00Z"), text: "Go slow.", author: "hermes", updatedAt: AT },
     seerr: { count: 2, source: { ok: true, lastSyncAt: NOW.toISOString(), error: null } },
     waitingItems: [],
+    checkin: null,
     links: { sonarrUrl: "https://sonarr.example.com", radarrUrl: null, seerrUrl: "https://requests.example.com" },
     ...overrides,
   };

@@ -55,3 +55,17 @@ export function confirmProgress(today: TodayResponse, cardId: string, itemId: st
   if (note?.kind === "looks_done") return setItemDone(today, cardId, itemId, true, at);
   return dropProgress(today, cardId, itemId, progressId);
 }
+
+/** A new deadline (or none) on an item. */
+export function setItemDue(today: TodayResponse, cardId: string, itemId: string, dueOn: string | null): TodayResponse {
+  return updateItem(today, cardId, itemId, (item) => ({ ...item, dueOn }));
+}
+
+/** A new deadline (or none) on a card. */
+export function setCardDue(today: TodayResponse, cardId: string, dueOn: string | null): TodayResponse {
+  return {
+    ...today,
+    workingOn: { ...today.workingOn, cards: today.workingOn.cards.map((card) => (card.id === cardId ? { ...card, dueOn } : card)) },
+  };
+}
+

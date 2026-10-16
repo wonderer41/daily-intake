@@ -92,6 +92,15 @@ export function CommitIcon({ strokeWidth = 1.6, ...props }: IconProps) {
   );
 }
 
+/** Calendar page, for due dates. */
+export function CalendarIcon({ strokeWidth = 1.6, ...props }: IconProps) {
+  return (
+    <Icon strokeWidth={strokeWidth} {...props}>
+      <path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" />
+    </Icon>
+  );
+}
+
 export function CheckIcon(props: IconProps) {
   return (
     <Icon {...props}>

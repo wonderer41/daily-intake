@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 import { dashboardTimeZone, localDateString } from "@/lib/time/zone";
 import type { HermesStateCard, HermesStateResponse, HermesStateSprint } from "@/types/dashboard-contracts";
 import { currentItem, dateOnly, toDbDate, toSprintDto } from "./dto";
+import { findCheckin, toHermesCheckin, weekOf } from "./checkin";
+import { dueOnDto } from "./due";
 import { toWaitingItemDto } from "./waiting";
 
 function toStateSprint(row: Sprint, today: string): HermesStateSprint {
@@ -25,7 +27,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
   const timeZone = dashboardTimeZone();
   const today = localDateString(now, timeZone);
 
-  const [sprints, cards, alerts, message, watchlist, waiting] = await Promise.all([
+  const [sprints, cards, alerts, message, watchlist, waiting, checkin] = await Promise.all([
     prisma.sprint.findMany({ where: { status: { in: ["active", "planned"] } }, orderBy: [{ startsOn: "asc" }, { createdAt: "asc" }] }),
     prisma.workCard.findMany({
       where: { status: { not: "archived" } },
@@ -44,6 +46,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     prisma.dailyMessage.findUnique({ where: { date: toDbDate(today) } }),
     prisma.watchlistSymbol.findMany({ orderBy: [{ position: "asc" }, { symbol: "asc" }], select: { symbol: true } }),
     prisma.waitingItem.findMany({ orderBy: [{ position: "asc" }, { title: "asc" }] }),
+    findCheckin(weekOf(today)),
   ]);
 
   const stateSprints = sprints.map((row) => toStateSprint(row, today));
@@ -53,6 +56,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
       id: card.id,
       key: card.externalKey,
       title: card.title,
+      dueOn: dueOnDto(card.dueOn),
       status: card.status,
       sprintId: card.sprintId,
       sprintKey: card.sprint?.externalKey ?? null,
@@ -67,6 +71,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
         id: item.id,
         key: item.externalKey,
         title: item.title,
+        dueOn: dueOnDto(item.dueOn),
         issueNumber: item.issueNumber,
         done: item.done,
         isCurrent: item.isCurrent,
@@ -95,5 +100,6 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     dailyMessage: message ? { date: dateOnly(message.date), text: message.text, author: message.author } : null,
     watchlist: watchlist.map((row) => row.symbol),
     waiting: waiting.map((row) => ({ ...toWaitingItemDto(row), position: row.position })),
+    checkin: checkin ? toHermesCheckin(checkin) : null,
   };
 }

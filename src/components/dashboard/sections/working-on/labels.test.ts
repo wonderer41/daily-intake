@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ChecklistItemDto } from "@/types/dashboard-contracts";
-import { cardDisplayTitle, countLine, itemName, shortSha, sprintLine, timeTag } from "./labels";
+import { cardDisplayTitle, countLine, dueLabel, effectiveDue, itemName, shortSha, sprintLine, timeTag } from "./labels";
 
 const zone = "America/Denver";
 
@@ -41,3 +41,20 @@ test("time tag: plain range today, weekday on another day", () => {
 test("short sha", () => {
   assert.equal(shortSha("a41f0c9be2d7aa"), "a41f0c9");
 });
+
+test("deadlines read as overdue, today, tomorrow, a weekday, or a date", () => {
+  // 2026-10-15 is a Thursday.
+  assert.deepEqual(dueLabel("2026-10-13", "2026-10-15"), { text: "overdue 2d", overdue: true });
+  assert.deepEqual(dueLabel("2026-10-15", "2026-10-15"), { text: "due today", overdue: false });
+  assert.deepEqual(dueLabel("2026-10-16", "2026-10-15"), { text: "due tomorrow", overdue: false });
+  assert.deepEqual(dueLabel("2026-10-19", "2026-10-15"), { text: "due Mon", overdue: false });
+  assert.deepEqual(dueLabel("2026-10-31", "2026-10-15"), { text: "due Oct 31", overdue: false });
+  assert.deepEqual(dueLabel("2027-01-02", "2026-12-30"), { text: "due Sat", overdue: false }, "across a year end");
+});
+
+test("an item without its own deadline falls under its card's", () => {
+  assert.equal(effectiveDue({ dueOn: "2026-10-20" }, { dueOn: "2026-10-31" }), "2026-10-20");
+  assert.equal(effectiveDue({ dueOn: null }, { dueOn: "2026-10-31" }), "2026-10-31");
+  assert.equal(effectiveDue({ dueOn: null }, { dueOn: null }), null);
+});
+

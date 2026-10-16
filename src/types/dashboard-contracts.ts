@@ -50,6 +50,8 @@ export interface ChecklistItemDto {
   title: string;
   issueNumber: number | null;
   sourceUrl: string | null;
+  /** Deadline, YYYY-MM-DD local; null = the card's dueOn applies. Overdue once that day is over. */
+  dueOn: string | null;
   done: boolean;
   doneAt: string | null;
   isCurrent: boolean;
@@ -71,6 +73,8 @@ export interface WorkCardDto {
   title: string;
   repoFullName: string | null;
   milestoneTitle: string | null;
+  /** Deadline, YYYY-MM-DD local. Items without their own dueOn fall under it. */
+  dueOn: string | null;
   sprintId: string | null;
   status: CardStatus;
   position: number;
@@ -102,6 +106,8 @@ export interface UpdateCardRequest {
   sprintId?: string | null;
   position?: number;
   milestoneTitle?: string | null;
+  /** YYYY-MM-DD, or null to clear. */
+  dueOn?: string | null;
 }
 
 export interface CreateItemRequest {
@@ -117,6 +123,8 @@ export interface UpdateItemRequest {
   title?: string;
   isCurrent?: boolean;
   position?: number;
+  /** YYYY-MM-DD, or null to clear. */
+  dueOn?: string | null;
 }
 
 export interface ReorderRequest {
@@ -234,6 +242,44 @@ export interface BannerDto {
   orphans: { capturedAt: string; data: OrphansSnapshot } | null;
   scan: { capturedAt: string; data: ScanSnapshot } | null;
   stocks: { capturedAt: string; data: StocksSnapshot } | null;
+  /** This week's check-in (Hermes writes it mid-week); null when there is none. Shown first. */
+  checkin: CheckinDto | null;
+}
+
+// ---------- Weekly check-in ----------
+
+export interface CheckinItemDto {
+  id: string;
+  key: string;
+  text: string;
+  done: boolean;
+  /**
+   * Set when the line is one of the cards' checklist items. It shares that item's done state, so the
+   * page checks it with PATCH /api/items/:id (with this version), not PATCH /api/checkin/items/:id.
+   */
+  checklistItem: { id: string; cardId: string; version: number } | null;
+}
+
+export interface CheckinDto {
+  /** Monday of the local week. */
+  weekOf: string;
+  summary: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Items done / total across the active sprint's cards; null without an active sprint. */
+  sprintProgress: { done: number; total: number } | null;
+  items: CheckinItemDto[];
+}
+
+/** PUT /api/hermes/checkin/:date — replaces the focus list; lines keep their checks by key. */
+export interface HermesCheckinBody {
+  summary: string;
+  items: { key: string; text: string; itemRef?: string | null }[];
+}
+
+/** PATCH /api/checkin/items/:id — lines that are not a checklist item. */
+export interface UpdateCheckinItemRequest {
+  done: boolean;
 }
 
 // ---------- Warnings ----------
@@ -323,7 +369,7 @@ export type LiveEvent =
   | { type: "item.upserted"; cardId: string; itemId: string }
   | { type: "sprint.upserted"; sprintId: string }
   | { type: "timeline.changed"; date: string }
-  | { type: "banner.updated"; kind: BannerKind | "dailyMessage" }
+  | { type: "banner.updated"; kind: BannerKind | "dailyMessage" | "checkin" }
   | { type: "alert.changed"; alertId: string }
   | { type: "schedule.updated"; scheduleId: string }
   | { type: "seerr.changed" }
@@ -466,11 +512,12 @@ export interface HermesStateItem {
   key: string | null;
   title: string;
   issueNumber: number | null;
+  dueOn: string | null;
   done: boolean;
   isCurrent: boolean;
   position: number;
   version: number;
-  /** Push notes still waiting for Gerardo, so Hermes does not suggest the same push again. */
+  /** Push notes still waiting for the user, so Hermes does not suggest the same push again. */
   progress: { kind: ProgressKind; commitSha: string }[];
 }
 
@@ -478,6 +525,7 @@ export interface HermesStateCard {
   id: string;
   key: string | null;
   title: string;
+  dueOn: string | null;
   status: CardStatus;
   sprintId: string | null;
   sprintKey: string | null;
@@ -516,4 +564,11 @@ export interface HermesStateResponse {
   watchlist: string[];
   /** Custom "Waiting on you" items, zero counts included, in position order. */
   waiting: (WaitingItemDto & { position: number })[];
+  /** This week's check-in, if written. `done` already reflects linked checklist items. */
+  checkin: {
+    weekOf: string;
+    summary: string;
+    updatedAt: string;
+    items: { key: string; text: string; done: boolean; itemId: string | null; itemKey: string | null }[];
+  } | null;
 }

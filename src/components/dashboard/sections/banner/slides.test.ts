@@ -8,13 +8,14 @@ const orphans = { items: [], counts: { sonarr: 0, radarr: 0 } };
 const scan = { ranAt: "2026-10-14T12:00:00Z", up: 1, total: 1, issues: [] };
 const stocks = { asOf: "2026-10-14T17:40:00Z", rows: [{ symbol: "NVDA", price: 181.2, currency: "USD", dayChangePct: 1.4, sixMonthChangePct: 22.5 }] };
 
-const empty: BannerDto = { dailyMessage: null, gmail: null, orphans: null, scan: null, stocks: null };
+const empty: BannerDto = { dailyMessage: null, gmail: null, orphans: null, scan: null, stocks: null, checkin: null };
 const full: BannerDto = {
   dailyMessage: { date: "2026-10-14", text: "Ship the banner.", author: "user" },
   gmail: { capturedAt: "2026-10-14T17:30:00Z", data: gmail },
   orphans: { capturedAt: "2026-10-14T12:15:00Z", data: orphans },
   scan: { capturedAt: "2026-10-14T12:00:00Z", data: scan },
   stocks: { capturedAt: "2026-10-14T17:40:00Z", data: stocks },
+  checkin: null,
 };
 
 test("all four slides show in order when every part has data", () => {
@@ -22,7 +23,7 @@ test("all four slides show in order when every part has data", () => {
 });
 
 test("slides with no data are skipped", () => {
-  assert.deepEqual(availableSlides({ ...full, gmail: null, stocks: null }), ["message", "infra"]);
+  assert.deepEqual(availableSlides({ ...full, gmail: null, stocks: null, checkin: null }), ["message", "infra"]);
   assert.deepEqual(availableSlides(empty), []);
 });
 
@@ -69,3 +70,10 @@ test("nothing to compare without a snapshot", () => {
   const banner: BannerDto = { ...empty, dailyMessage: full.dailyMessage };
   assert.equal(oldestSlide(banner, availableSlides(banner)), null);
 });
+
+test("the weekly check-in leads while there is one", () => {
+  const checkin = { weekOf: "2026-10-12", summary: "On track.", createdAt: "2026-10-14T18:00:00Z", updatedAt: "2026-10-14T18:00:00Z", sprintProgress: null, items: [] };
+  assert.deepEqual(availableSlides({ ...full, checkin }), ["checkin", "message", "gmail", "infra", "stocks"]);
+  assert.deepEqual(availableSlides({ ...empty, checkin }), ["checkin"]);
+});
+

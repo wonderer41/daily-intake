@@ -149,6 +149,8 @@ model WorkCard {
   /// "owner/repo" when the card mirrors a GitHub repository.
   repoFullName     String?         @db.VarChar(200)
   milestoneTitle   String?         @db.VarChar(160)
+  /// Deadline (a local date; overdue once that day is over). Items without their own fall under this.
+  dueOn            DateTime?       @db.Date
   sprintId         String?         @db.Uuid
   /// Optional link to the existing Project so WorkEvents can feed the card's meta line.
   projectId        String?         @db.Uuid
@@ -181,6 +183,8 @@ model ChecklistItem {
   title            String            @db.VarChar(200)
   issueNumber      Int?
   sourceUrl        String?
+  /// Deadline (a local date). Null = the card's dueOn applies.
+  dueOn            DateTime?         @db.Date
   done             Boolean           @default(false)
   doneAt           DateTime?
   /// The "now"/"next" item shown on the collapsed card. At most one per card (enforce in code).
@@ -194,6 +198,7 @@ model ChecklistItem {
   calendarEvents   CalendarEvent[]
   scheduleRequests ScheduleRequest[]
   progress         ItemProgress[]
+  checkinItems     CheckinItem[]
 
   @@index([cardId, position])
 }
@@ -346,6 +351,37 @@ model WaitingItem {
   position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// The weekly check-in Hermes writes mid-week and updates before the weekend. It is the first banner
+/// slide from when it is written until the week ends (Sunday night, local).
+model WeeklyCheckin {
+  id        String        @id @default(uuid()) @db.Uuid
+  /// Monday of the local week it belongs to.
+  weekOf    DateTime      @unique @db.Date
+  summary   String        @db.VarChar(1000)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  items     CheckinItem[]
+}
+
+/// One line of a check-in's focus list. Linked to a checklist item, it shares that item's done state
+/// (checking either one checks both); otherwise it keeps its own.
+model CheckinItem {
+  id              String         @id @default(uuid()) @db.Uuid
+  checkinId       String         @db.Uuid
+  /// Hermes's name for the line within the week, e.g. "streak-tracking"; kept across updates.
+  key             String         @db.VarChar(100)
+  text            String         @db.VarChar(200)
+  position        Int            @default(0)
+  checklistItemId String?        @db.Uuid
+  /// Only used when the line is not linked to a checklist item.
+  done            Boolean        @default(false)
+  doneAt          DateTime?
+  checkin         WeeklyCheckin  @relation(fields: [checkinId], references: [id], onDelete: Cascade)
+  checklistItem   ChecklistItem? @relation(fields: [checklistItemId], references: [id], onDelete: SetNull)
+
+  @@unique([checkinId, key])
 }
 
 /// Symbols shown on the stocks banner slide. Hermes or the user can replace the list at any time.

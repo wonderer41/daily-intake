@@ -138,10 +138,12 @@ export interface UpdateCardInput {
   sprintId: string | null | undefined;
   position: number | undefined;
   milestoneTitle: string | null | undefined;
+  /** YYYY-MM-DD; null clears it. */
+  dueOn: string | null | undefined;
 }
 
 export function parseUpdateCard(body: unknown): UpdateCardInput {
-  const o = strictObject(body, ROOT, ["version", "title", "status", "sprintId", "position", "milestoneTitle"]);
+  const o = strictObject(body, ROOT, ["version", "title", "status", "sprintId", "position", "milestoneTitle", "dueOn"]);
   return {
     version: version(o.version),
     title: optional(o.title, (v) => requiredString(v, "title", 160)),
@@ -149,6 +151,7 @@ export function parseUpdateCard(body: unknown): UpdateCardInput {
     sprintId: optionalUuid(o.sprintId, "sprintId"),
     position: position(o.position),
     milestoneTitle: optionalString(o.milestoneTitle, "milestoneTitle", 160),
+    dueOn: (o.dueOn === undefined || o.dueOn === null ? o.dueOn : localDate(o.dueOn, "dueOn")) as string | null | undefined,
   };
 }
 
@@ -187,16 +190,19 @@ export interface UpdateItemInput {
   title: string | undefined;
   isCurrent: boolean | undefined;
   position: number | undefined;
+  /** YYYY-MM-DD; null clears it (the card's dueOn applies). */
+  dueOn: string | null | undefined;
 }
 
 export function parseUpdateItem(body: unknown): UpdateItemInput {
-  const o = strictObject(body, ROOT, ["version", "done", "title", "isCurrent", "position"]);
+  const o = strictObject(body, ROOT, ["version", "done", "title", "isCurrent", "position", "dueOn"]);
   return {
     version: version(o.version),
     done: optional(o.done, (v) => boolean(v, "done")),
     title: optional(o.title, (v) => requiredString(v, "title", 200)),
     isCurrent: optional(o.isCurrent, (v) => boolean(v, "isCurrent")),
     position: position(o.position),
+    dueOn: (o.dueOn === undefined || o.dueOn === null ? o.dueOn : localDate(o.dueOn, "dueOn")) as string | null | undefined,
   };
 }
 
