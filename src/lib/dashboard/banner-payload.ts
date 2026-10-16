@@ -44,10 +44,13 @@ function parseGmail(o: Record<string, unknown>): GmailSnapshot {
       };
     }),
     packages: arrayOf(o.packages, "packages", MAX_LIST, (value, field) => {
-      const row = strictObject(value, field, ["label", "status"]);
+      const row = strictObject(value, field, ["label", "status", "threadUrl", "updatedAt"]);
+      const threadUrl = optionalHttpUrl(row.threadUrl, fieldPath(field, "threadUrl"));
       return {
         label: requiredString(row.label, fieldPath(field, "label"), 200),
         status: requiredString(row.status, fieldPath(field, "status"), 100),
+        ...(threadUrl === undefined ? {} : { threadUrl }),
+        ...(row.updatedAt === undefined ? {} : { updatedAt: isoDateTime(row.updatedAt, fieldPath(field, "updatedAt")) }),
       };
     }),
     payments: arrayOf(o.payments, "payments", MAX_LIST, (value, field) => {
@@ -58,6 +61,7 @@ function parseGmail(o: Record<string, unknown>): GmailSnapshot {
       };
     }),
     deletedCount: count(o.deletedCount, "deletedCount"),
+    archivedCount: count(o.archivedCount, "archivedCount"),
   };
 }
 
@@ -120,7 +124,7 @@ function parseStocks(o: Record<string, unknown>): StocksSnapshot {
 }
 
 const FIELDS: Record<BannerKind, readonly string[]> = {
-  gmail: ["since", "needsReply", "packages", "payments", "deletedCount"],
+  gmail: ["since", "needsReply", "packages", "payments", "deletedCount", "archivedCount"],
   orphans: ["items", "counts"],
   scan: ["ranAt", "up", "total", "issues"],
   stocks: ["asOf", "rows"],

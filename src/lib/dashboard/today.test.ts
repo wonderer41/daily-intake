@@ -105,6 +105,7 @@ const gmail: SnapshotRow = {
     packages: [],
     payments: [],
     deletedCount: 4,
+    archivedCount: 9,
   },
 };
 

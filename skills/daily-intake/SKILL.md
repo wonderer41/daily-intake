@@ -1,9 +1,36 @@
 ---
 name: daily-intake
-description: Read and update the user's Daily Intake dashboard through its HTTP API. Covers Working-on cards, checklist items, sprints, push-progress notes on items, banner snapshots (gmail, orphans, scan), the stocks watchlist, Broken-panel alerts, custom "Waiting on you" items, the weekly check-in, the daily message, and refreshing the timeline after calendar changes.
+description: Base skill for the user's Daily Intake dashboard. It covers how to reach the dashboard's HTTP API, read its state, address cards, items and sprints by key or id, handle versions and 409 conflicts, and read the status codes. Load it before any daily-intake-* skill. On its own, use it to answer what is on the user's dashboard.
+version: 1.0.0
+license: MIT
+required_environment_variables:
+  - name: DAILY_INTAKE_URL
+    prompt: Daily Intake dashboard URL
+    help: Where you reach the dashboard, for example http://127.0.0.1:4849 when it runs on the same host.
+  - name: DAILY_INTAKE_TOKEN
+    prompt: Daily Intake token
+    help: The same value as HERMES_DASHBOARD_TOKEN in the dashboard's env file.
+metadata:
+  hermes:
+    tags: [daily-intake, dashboard]
 ---
 
 # Daily Intake dashboard
+
+This is the base for the `daily-intake-*` skills. Each of them starts with "load `daily-intake` first" and only adds its own job. The rules here apply to all of them.
+
+| Skill | Job |
+|---|---|
+| `daily-intake-sprints` | Sprints, Working-on cards, checklist items and deadlines |
+| `daily-intake-push-review` | Push-progress notes on items after a push |
+| `daily-intake-gmail` | The Gmail banner snapshot |
+| `daily-intake-orphans-scan` | The orphans and container-scan banner snapshots |
+| `daily-intake-daily-message` | The daily message |
+| `daily-intake-watchlist` | The stocks watchlist |
+| `daily-intake-alerts` | Alerts in the Broken panel |
+| `daily-intake-waiting` | Custom items in the "Waiting on you" panel |
+| `daily-intake-weekly-checkin` | The weekly check-in |
+| `daily-intake-scheduling` | Calendar changes the timeline should pick up |
 
 ## Connection
 
@@ -17,9 +44,9 @@ curl -sS -X PUT "$DAILY_INTAKE_URL/api/hermes/<path>" \
   -d '<json>' -w '\nHTTP %{http_code}\n'
 ```
 
-The rest of this file shows each request as `METHOD path` plus a body.
+The `daily-intake-*` skills show each request as `METHOD path` plus a body.
 
-## 1. Always read state first
+## Read state first
 
 `GET /api/hermes/state` returns:
 
@@ -35,7 +62,7 @@ The rest of this file shows each request as `METHOD path` plus a body.
 
 Read the state before every batch of writes. Reuse what is already there. Never create a second card or item for something that already exists, even if it has no key.
 
-## 2. Addressing rows: key or id
+## Addressing rows: key or id
 
 Cards, items and sprints can be addressed in two ways in a path, and in a card's `sprintKey`:
 
@@ -59,7 +86,7 @@ Rules for keys:
 - Keys are at most 200 characters.
 - URL-encode every key in a path: `:` becomes `%3A`, `/` becomes `%2F` and `#` becomes `%23`. For example, `github:issue:example-user/study-sessions#13` is written as `github%3Aissue%3Aexample-user%2Fstudy-sessions%2313`, and `id:5f0c…` is written as `id%3A5f0c…`.
 
-## 3. Changing rows the user may have edited: versions
+## Changing rows the user may have edited: versions
 
 The user's edits win. Every card, item and sprint has a `version`.
 
@@ -79,196 +106,7 @@ Body conventions:
 - Unknown fields are rejected with `400`.
 - The required fields have to be sent on every `PUT`, even when nothing else changes: `title` for cards and items, and `name`, `startsOn` and `endsOn` for sprints. Send the current value if you don't mean to change it.
 
-## 4. Sprints
-
-`PUT /api/hermes/sprints/<key or id:uuid>`
-
-```json
-{ "name": "Streaks v1", "goal": "Ship streak tracking", "startsOn": "2026-10-12", "endsOn": "2026-10-25" }
-```
-
-- Dates are `YYYY-MM-DD`, and `endsOn` must be on or after `startsOn`. `name` is at most 120 characters and `goal` at most 500.
-- A new sprint is created as `planned`.
-- To start a sprint, send `"status": "active"` with its `version`. Only one sprint can be active, so activating one closes the previously active sprint automatically. Do this only when the user says the sprint starts.
-- `"status": "closed"` ends a sprint.
-- When the user describes a sprint, create it first. Then create its cards with `sprintKey`, and then the items of each card.
-
-## 5. Cards and items
-
-`PUT /api/hermes/cards/<key or id:uuid>`
-
-```json
-{ "title": "Orphan cleanup", "milestoneTitle": "Manual review pile", "sprintKey": "hermes:sprint:2026-10-12",
-  "repoFullName": "example-user/orphan-tools", "hermesSuggestion": "Block 90 min tonight for the BDMVs?", "meta": { "note": "design phase" } }
-```
-
-- `title` is at most 160 characters.
-- `status` is one of `active`, `paused`, `done` or `archived`.
-- `position` is an integer. New cards go to the end of the column.
-- `sprintKey` is a sprint key or `id:<uuid>`. Send `null` to unlink the card from its sprint. If the sprint doesn't exist, the answer is `404`.
-- `repoFullName` is `owner/repo`. Set it on cards that track a GitHub repo, because push notes (section 6) only apply to those cards. Leave it out for plain to-do cards that aren't tied to a repo.
-- `dueOn` is the card's deadline as `YYYY-MM-DD` (a local date; overdue once that day is over). Send `null` to clear it. Only set it when the user gave you a deadline.
-- `hermesSuggestion` is one short line shown on the collapsed card, such as `Block 90 min tonight for #12?`. Clear it with `null` once the work is booked or the suggestion is stale.
-- `meta` is merged shallowly into what is stored: keys you send overwrite, a key set to `null` is removed, and keys you leave out stay. The limit is 4 KB.
-  - `meta.note` is shown in the card's meta line. Use it for a short phase or status, such as `"design phase"`.
-
-`PUT /api/hermes/cards/<card>/items/<key or id:uuid>`
-
-```json
-{ "title": "Review the 4 BDMV folders", "isCurrent": true }
-```
-
-- `title` is at most 200 characters.
-- The other fields are `issueNumber`, `sourceUrl` (http or https), `dueOn`, `isCurrent`, `position`, `done` (see section 3), `version` and `force`.
-- `dueOn` is the item's own deadline (`YYYY-MM-DD`, or `null` to clear). An item without one falls under its card's `dueOn`. The user can also set deadlines on the page, and their edits win (section 3).
-- `isCurrent` marks the "now" item. If no item is current, the page shows the first unchecked item as "next".
-- If you put an existing item under a different card, it moves to that card. That is a change, so it needs the item's `version`.
-- The card must exist before you add items to it, or the answer is `404`.
-
-`POST /api/hermes/cards/<key or id:uuid>/archive` takes no body.
-
-- Archive a card when its milestone closes or when the user says the work is done. Archiving needs no version.
-- Never delete a card.
-
-When to create a card:
-
-- The user asks you to track something.
-- A new GitHub milestone appears in their repos.
-- A multi-step homelab job starts.
-
-Don't rename the user's cards or un-check their items unless they ask you to.
-
-## 6. Push-progress notes on items
-
-After a push to a repo that has a card (the card's `repoFullName` equals the push's repo), read the commits and the diff. Then compare them with that card's open items (`done: false`). Skip repos without a card.
-
-For each item the push clearly touches, write **one** note. Use the push's head commit SHA (the full 40 characters):
-
-`PUT /api/hermes/cards/<card>/items/<item>/progress/<sha>`
-
-```json
-{ "repoFullName": "example-user/study-sessions", "kind": "partial",
-  "note": "Added the streak model and migration; the UI is still missing.", "pushedAt": "2026-10-14T19:05:00Z" }
-```
-
-- Use `"kind": "looks_done"` when the push appears to finish everything the item asks for, for example when the issue's acceptance criteria are met or a commit says it closes the issue. The page then asks the user: "looks done from push X — confirm?".
-- Use `"kind": "partial"` when the push moves the item forward but leaves work.
-- Send nothing when the link is weak.
-- `note` is one plain sentence of at most 500 characters saying what the push did for that item.
-- `pushedAt` is an ISO time with a zone.
-- **Never check the item yourself.** Don't send `done` for it. The user confirms `looks_done` notes on the page, and that confirmation checks the item.
-- One note per (item, sha). Re-sending the same note is a no-op (`200`, `created: false`).
-  - Sending the same sha again with different text updates the note.
-  - If the user dismissed the note, sending the same sha with a **different `kind`** shows it to them again. Only do that when you really changed your verdict.
-- Before writing, check the item's `progress[]` in the state. Don't send a second note for a push that is already pending there.
-- Process each push once, and don't re-scan old pushes.
-
-## 7. Banner snapshots
-
-`PUT /api/hermes/banner/<kind>`. The body is that kind's payload plus `"capturedAt": "<ISO>"`. Unknown fields are rejected at every level.
-
-- `gmail`: `{ "since", "needsReply": [{ "from", "subject", "threadUrl?" }], "packages": [{ "label", "status" }], "payments": [{ "merchant", "at" }], "deletedCount" }`
-  - For needs-reply, include only the sender and subject.
-  - Never include amounts. A payment that carries an `amount` is rejected.
-  - Each list holds at most 50 entries.
-- `orphans`: `{ "items": [{ "name", "kind": "episode|movie", "arr": "sonarr|radarr" }], "counts": { "sonarr", "radarr" } }`
-  - Names only, at most 200 items.
-- `scan`: `{ "ranAt", "up", "total", "issues": [{ "container", "summary" }] }`
-  - `up` can't be greater than `total`.
-  - Give each issue a one-line `summary`.
-
-Each new `capturedAt` stores a new snapshot (`201`), and the page shows the newest one. If you send the same `capturedAt` again with the same payload, nothing changes (`200`). If you send it with a different payload, that capture is replaced.
-
-**Stocks are filled by the server now** from Finnhub and Tiingo. Don't push `stocks` snapshots. Change the watchlist instead (section 8).
-
-## 8. Stocks watchlist
-
-`GET /api/hermes/watchlist` returns `{ "data": { "symbols": [...] } }`.
-
-`PUT /api/hermes/watchlist` replaces the whole list. Send it only when the user asks for a change:
-
-```json
-{ "symbols": ["NVDA", "AMD", "MU", "TSLA", "AMZN", "XOM", "CVX", "COP", "CEG", "VST", "NEE", "TSM"] }
-```
-
-- The list holds 1 to 50 tickers. The order you send is the order on the banner.
-- Tickers are uppercased and duplicates are dropped.
-- To add or remove one symbol, read the list, edit it, and send the whole list back.
-- The response is `{ "data": { "symbols" }, "changed", "synced", "syncError?" }`.
-  - When the list changed, the dashboard refreshes the stock quotes before answering. This can take up to about 30 seconds.
-  - `synced: false` together with a `syncError` means the banner will catch up on its next 5-minute refresh. Tell the user the `syncError` text if they are waiting for the banner.
-
-## 9. Alerts (Broken panel)
-
-`PUT /api/hermes/alerts/<dedupeKey>`
-
-```json
-{ "source": "scan", "title": "jellyfin restarting", "detail": "3 restarts since 06:00", "severity": "warning" }
-```
-
-- `severity` is `warning` or `critical`. Alerts have no version, so the latest push wins.
-- Re-sending a PUT for an alert that was resolved **reopens** it, because the problem came back.
-- `POST /api/hermes/alerts/<dedupeKey>/resolve` takes no body. Send it when the problem is gone. Resolving twice changes nothing.
-
-## 9b. Waiting on you (custom items)
-
-Besides Gmail, Seerr and orphan review, the "Waiting on you" panel shows any custom item you push, such as pull requests to review or invoices to pay. Only push things the user asked you to track.
-
-`PUT /api/hermes/waiting/<key>`
-
-```json
-{ "title": "PRs to review", "count": 3, "detail": "oldest from Monday", "url": "https://github.com/pulls", "position": 10 }
-```
-
-- `key` uses the alert format, `<source>:<thing>`, for example `github:prs-to-review`.
-- `title` is up to 80 characters and `detail` up to 200. `url` must be http(s). `detail` and `url` are optional; send `null` to clear one.
-- The page hides an item while its `count` is 0, so update the count as things change instead of deleting and re-creating it.
-- `DELETE /api/hermes/waiting/<key>` removes an item for good, when the user no longer wants it tracked.
-- Items have no version: the latest push wins, and sending the same values again changes nothing.
-
-## 9c. Weekly check-in
-
-Write the check-in on **Wednesday** and update it on **Friday** (the user's schedule for you decides the time). From when you write it until Sunday night it is the first slide on the banner, and the user checks lines off on the page.
-
-`PUT /api/hermes/checkin/<YYYY-MM-DD>` (any day of the week; it is stored under that week's Monday)
-
-```json
-{
-  "summary": "You're ahead on study-sessions, but orphan-cleanup hasn't moved since Monday and its review is overdue.",
-  "items": [
-    { "key": "bdmv-review", "text": "Review the 4 BDMV folders (~1 h, overdue)", "itemRef": "hermes:item:orphan-cleanup:review-bdmvs" },
-    { "key": "streak-tracking", "text": "#13 Streak tracking (~3 h, Thursday evening is free)", "itemRef": "github:issue:example-user/study-sessions#13" },
-    { "key": "call-isp", "text": "Call the ISP about Monday's outage" }
-  ]
-}
-```
-
-How to build it:
-
-1. `GET /api/hermes/state`: the active sprint (`daysLeft`), every card and item (`done`, `dueOn`), open alerts, and `checkin` if one exists for this week (with what the user already checked).
-2. Read the user's calendar for the rest of the week to find free time.
-3. `summary`: 1–3 honest sentences in your own voice. Say how the week is going, and name anything overdue first. At most 1000 characters.
-4. `items`: up to 5 lines (10 at most), most important first: overdue and due-soon items, then the active sprint's current items, then open alerts. Add a time estimate and a free slot from the calendar when it helps. Each `text` is at most 200 characters.
-5. When a line is one of the cards' checklist items, set `itemRef` (its key or `id:<uuid>`). The line then shares that item's check: checking it in either place checks both. Leave `itemRef` out for anything that isn't on a card.
-6. `key` is your name for the line within the week (lowercase letters, digits, dashes). Keep the same key for the same thing when you update the check-in.
-
-On Friday, read `checkin` from the state first. Re-send the lines that still matter with the **same keys** (their checks are kept), drop what no longer matters, and add suggestions for the weekend. The list you send replaces the old one; lines you leave out are removed. Never mark lines done: checks belong to the user. Sending the same check-in again changes nothing.
-
-## 10. Daily message
-
-`PUT /api/hermes/daily-message/<YYYY-MM-DD>` with the local date in the dashboard's `timeZone`:
-
-```json
-{ "text": "Morning! Two work blocks today; jellyfin is flapping again." }
-```
-
-The text is at most 500 characters. Sending the same text again is a no-op.
-
-## 11. After you book or move a calendar event
-
-`POST /api/hermes/calendar/changed`, with no body or with `{ "calendarId": "<id>" }`, makes the dashboard sync the calendar so the timeline updates right away. If Google isn't set up on the dashboard or fails, the answer is `502`.
-
-## 12. Status codes
+## Status codes
 
 | Code | Meaning | What you do |
 |---|---|---|

@@ -201,9 +201,12 @@ export interface ScheduleRequestDto {
 export interface GmailSnapshot {
   since: string; // ISO
   needsReply: { from: string; subject: string; threadUrl?: string | null }[];
-  packages: { label: string; status: string }[]; // label = store or item
+  /** label = store or item. `updatedAt` (its latest mail) is Hermes's bookkeeping; the page doesn't show it. */
+  packages: { label: string; status: string; threadUrl?: string | null; updatedAt?: string }[];
   payments: { merchant: string; at: string }[]; // no amounts, by design
+  /** Mail that arrived since `since` and is now in the trash / out of the inbox (not trashed). */
   deletedCount: number;
+  archivedCount: number;
 }
 
 export interface OrphansSnapshot {
@@ -564,6 +567,8 @@ export interface HermesStateResponse {
   watchlist: string[];
   /** Custom "Waiting on you" items, zero counts included, in position order. */
   waiting: (WaitingItemDto & { position: number })[];
+  /** The newest Gmail snapshot, so the Gmail job can carry Needs reply and Packages forward. */
+  gmail: { capturedAt: string; data: GmailSnapshot } | null;
   /** This week's check-in, if written. `done` already reflects linked checklist items. */
   checkin: {
     weekOf: string;

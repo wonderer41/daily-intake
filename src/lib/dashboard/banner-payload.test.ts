@@ -33,12 +33,26 @@ test("gmail payloads can never carry amounts", () => {
     packages: [{ label: "Amazon", status: "out for delivery" }],
     payments: [{ merchant: "Hetzner", at: "2026-10-14T09:00:00Z" }],
     deletedCount: 12,
+    archivedCount: 30,
   };
   const parsed = parseSnapshotPayload("gmail", gmail);
   assert.equal("threadUrl" in (parsed as typeof gmail).needsReply[0], false);
   const withAmount = { ...gmail, payments: [{ merchant: "Hetzner", at: "2026-10-14T09:00:00Z", amount: 4.5 }] };
   assert.equal(field(() => parseSnapshotPayload("gmail", withAmount)), "payments[0].amount");
   assert.equal(field(() => parseSnapshotPayload("gmail", { ...gmail, deletedCount: -1 })), "deletedCount");
+  const withoutArchived: Record<string, unknown> = { ...gmail };
+  delete withoutArchived.archivedCount;
+  assert.equal(field(() => parseSnapshotPayload("gmail", withoutArchived)), "archivedCount");
+});
+
+test("gmail packages may carry their thread and latest mail time", () => {
+  const base = { since: "2026-10-14T05:00:00-06:00", needsReply: [], payments: [], deletedCount: 0, archivedCount: 0 };
+  const parcel = { label: "Keyboard (Amazon)", status: "shipped", threadUrl: "https://mail.google.com/mail/u/0/#all/18c2f0a1b2c3d4e5", updatedAt: "2026-10-13T16:20:00Z" };
+  const parsed = parseSnapshotPayload("gmail", { ...base, packages: [parcel, { label: "Desk lamp", status: "delivered" }] }) as { packages: object[] };
+  assert.deepEqual(parsed.packages, [{ ...parcel, updatedAt: "2026-10-13T16:20:00.000Z" }, { label: "Desk lamp", status: "delivered" }]);
+  assert.equal(field(() => parseSnapshotPayload("gmail", { ...base, packages: [{ ...parcel, updatedAt: "yesterday" }] })), "packages[0].updatedAt");
+  assert.equal(field(() => parseSnapshotPayload("gmail", { ...base, packages: [{ ...parcel, threadUrl: "mailto:x" }] })), "packages[0].threadUrl");
+  assert.equal(field(() => parseSnapshotPayload("gmail", { ...base, packages: [{ ...parcel, tracking: "1Z" }] })), "packages[0].tracking");
 });
 
 test("orphans and scan payloads", () => {

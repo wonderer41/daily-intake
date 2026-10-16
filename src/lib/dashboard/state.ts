@@ -1,7 +1,8 @@
 import type { Sprint } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { dashboardTimeZone, localDateString } from "@/lib/time/zone";
-import type { HermesStateCard, HermesStateResponse, HermesStateSprint } from "@/types/dashboard-contracts";
+import type { GmailSnapshot, HermesStateCard, HermesStateResponse, HermesStateSprint } from "@/types/dashboard-contracts";
+import { parseSnapshotPayload } from "./banner-payload";
 import { currentItem, dateOnly, toDbDate, toSprintDto } from "./dto";
 import { findCheckin, toHermesCheckin, weekOf } from "./checkin";
 import { dueOnDto } from "./due";
@@ -27,7 +28,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
   const timeZone = dashboardTimeZone();
   const today = localDateString(now, timeZone);
 
-  const [sprints, cards, alerts, message, watchlist, waiting, checkin] = await Promise.all([
+  const [sprints, cards, alerts, message, watchlist, waiting, checkin, gmail] = await Promise.all([
     prisma.sprint.findMany({ where: { status: { in: ["active", "planned"] } }, orderBy: [{ startsOn: "asc" }, { createdAt: "asc" }] }),
     prisma.workCard.findMany({
       where: { status: { not: "archived" } },
@@ -47,6 +48,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     prisma.watchlistSymbol.findMany({ orderBy: [{ position: "asc" }, { symbol: "asc" }], select: { symbol: true } }),
     prisma.waitingItem.findMany({ orderBy: [{ position: "asc" }, { title: "asc" }] }),
     findCheckin(weekOf(today)),
+    prisma.bannerSnapshot.findFirst({ where: { kind: "gmail" }, orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }], select: { payload: true, capturedAt: true } }),
   ]);
 
   const stateSprints = sprints.map((row) => toStateSprint(row, today));
@@ -101,5 +103,15 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     watchlist: watchlist.map((row) => row.symbol),
     waiting: waiting.map((row) => ({ ...toWaitingItemDto(row), position: row.position })),
     checkin: checkin ? toHermesCheckin(checkin) : null,
+    gmail: gmail ? storedGmail(gmail) : null,
   };
+}
+
+/** The stored Gmail snapshot, re-validated: an old or malformed row reads as none, so Hermes starts over. */
+function storedGmail(row: { payload: unknown; capturedAt: Date }): HermesStateResponse["gmail"] {
+  try {
+    return { capturedAt: row.capturedAt.toISOString(), data: parseSnapshotPayload("gmail", row.payload) as GmailSnapshot };
+  } catch {
+    return null;
+  }
 }

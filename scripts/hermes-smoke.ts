@@ -433,7 +433,7 @@ async function main(): Promise<void> {
   });
 
   await step("gmail payment with an amount → 400 with details", async () => {
-    const gmail = { since: capturedAt, needsReply: [], packages: [], payments: [{ merchant: "Shop", at: capturedAt, amount: 12 }], deletedCount: 0, capturedAt };
+    const gmail = { since: capturedAt, needsReply: [], packages: [], payments: [{ merchant: "Shop", at: capturedAt, amount: 12 }], deletedCount: 0, archivedCount: 0, capturedAt };
     const reply = await call<ErrorBody>("PUT", "/api/hermes/banner/gmail", gmail);
     expectStatus(reply, 400);
     check(JSON.stringify(reply.body.error.details) === JSON.stringify({ field: "payments[0].amount" }), "details.field should be payments[0].amount");

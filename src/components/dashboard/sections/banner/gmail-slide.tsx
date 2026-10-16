@@ -7,12 +7,12 @@ import { capRows, formatClockOrDay } from "./format";
 const ROWS_PER_GROUP = 4;
 
 interface GroupProps {
-  tone: "reply" | "packages" | "payments" | "deleted";
+  tone: "reply" | "packages" | "payments";
   count: number;
   label: string;
   /** Rows left out of the list, shown as "+N more". */
   hidden?: number;
-  /** Muted line under the count (the Deleted group, and "None" for an empty list). */
+  /** Muted line under the list ("None" for an empty one). */
   caption?: string;
   children?: ReactNode;
 }
@@ -37,7 +37,10 @@ export interface GmailSlideProps {
   now: Date;
 }
 
-/** Slide 2: four groups side by side. Payments carry merchant and time only, never amounts. */
+/**
+ * Slide 2: four groups side by side; the last one, Cleaned up, stacks the deleted and archived counts.
+ * Payments carry merchant and time only, never amounts.
+ */
 export function GmailSlide({ data, timeZone, now }: GmailSlideProps) {
   const needsReply = capRows(data.needsReply, ROWS_PER_GROUP);
   const packages = capRows(data.packages, ROWS_PER_GROUP);
@@ -82,16 +85,26 @@ export function GmailSlide({ data, timeZone, now }: GmailSlideProps) {
         <Group tone="packages" count={data.packages.length} label="Packages" hidden={packages.hidden} caption={data.packages.length === 0 ? "None on the way" : undefined}>
           {packages.shown.length > 0 ? (
             <ul className="banner-rows">
-              {packages.shown.map((parcel, index) => (
-                <li key={index} className="banner-row">
-                  <span className="banner-row__text">
-                    <span className="banner-row__main" title={parcel.label}>
-                      {parcel.label}
-                    </span>
+              {packages.shown.map((parcel, index) => {
+                const label = (
+                  <span className="banner-row__main" title={parcel.label}>
+                    {parcel.label}
                   </span>
-                  <span className="banner-row__tag">{parcel.status}</span>
-                </li>
-              ))}
+                );
+                return (
+                  <li key={index} className="banner-row">
+                    {parcel.threadUrl ? (
+                      <a className="banner-row__text banner-row__link" href={parcel.threadUrl} target="_blank" rel="noopener noreferrer">
+                        {label}
+                        <span className="sr-only"> (opens in a new tab)</span>
+                      </a>
+                    ) : (
+                      <span className="banner-row__text">{label}</span>
+                    )}
+                    <span className="banner-row__tag">{parcel.status}</span>
+                  </li>
+                );
+              })}
             </ul>
           ) : null}
         </Group>
@@ -115,7 +128,17 @@ export function GmailSlide({ data, timeZone, now }: GmailSlideProps) {
           ) : null}
         </Group>
 
-        <Group tone="deleted" count={data.deletedCount} label="Deleted" caption={since ? `moved to trash since ${since}` : "moved to trash"} />
+        <div className="banner-group banner-group--deleted" role="group" aria-label="Cleaned up">
+          <div className="banner-group__head">
+            <span className="banner-group__count">{data.deletedCount}</span>
+            <span className="banner-group__label">Deleted</span>
+          </div>
+          <div className="banner-group__head">
+            <span className="banner-group__count">{data.archivedCount}</span>
+            <span className="banner-group__label">Archived</span>
+          </div>
+          <span className="banner-group__caption">{since ? `since ${since}` : "today"}</span>
+        </div>
       </div>
     </>
   );

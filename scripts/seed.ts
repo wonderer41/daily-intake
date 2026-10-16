@@ -280,6 +280,7 @@ async function seed(): Promise<void> {
               { merchant: "[Merchant]", at: at(8 * 60 + 5).toISOString() },
             ],
             deletedCount: 14,
+            archivedCount: 31,
           },
         },
         {
