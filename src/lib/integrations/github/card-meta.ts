@@ -5,6 +5,7 @@ import { mergeMeta } from "@/lib/dashboard/json";
 import { publishLiveEvent } from "@/lib/live/publish";
 import { safeErrorMessage } from "@/lib/live/redact";
 import type { LiveEvent } from "@/types/dashboard-contracts";
+import { loadGithubToken } from "./api";
 import { fetchRepoActivity, type RepoActivity } from "./repo-activity";
 
 // GitHub → the collapsed card's meta line (decision D7: GitHub is read-only). Only cards that carry
@@ -56,12 +57,6 @@ export interface CardMetaDeps {
   env?: NodeJS.ProcessEnv;
   store?: CardMetaStore;
   publish?: (event: LiveEvent) => Promise<void>;
-}
-
-function loadGithubToken(env: NodeJS.ProcessEnv): string {
-  const token = env.GITHUB_TOKEN?.trim() ?? "";
-  if (!token) throw new HttpError("UPSTREAM_ERROR", "GITHUB_TOKEN is not configured");
-  return token;
 }
 
 function storedGithub(meta: unknown): Partial<RepoActivity> | null {
@@ -155,12 +150,16 @@ export function formatCardMetaResult(result: CardMetaSyncResult): string {
   return failed.length === 0 ? counts : `${counts} (${failed.map((entry) => `${entry.repoFullName}: ${entry.message}`).join("; ")})`;
 }
 
-/** The worker job: sync once and return the log summary. Throws when every card failed (token revoked, GitHub down). */
-export async function runGithubCardMetaJob(now: Date, deps: CardMetaDeps = {}): Promise<string> {
-  const result = await syncGithubCardMeta(now, deps);
+/** The log summary of one sync. Throws when every card failed (token revoked, GitHub down). */
+export function cardMetaJobSummary(result: CardMetaSyncResult): string {
   const summary = formatCardMetaResult(result);
   if (result.failed.length > 0 && result.updated.length + result.unchanged.length === 0) {
     throw new HttpError("UPSTREAM_ERROR", summary);
   }
   return summary;
+}
+
+/** Sync once and return the log summary. Throws when every card failed. */
+export async function runGithubCardMetaJob(now: Date, deps: CardMetaDeps = {}): Promise<string> {
+  return cardMetaJobSummary(await syncGithubCardMeta(now, deps));
 }

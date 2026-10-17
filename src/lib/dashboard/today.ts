@@ -1,4 +1,4 @@
-import type { BannerKind, DailyMessage, Prisma, Sprint, WaitingItem } from "@/generated/prisma/client";
+import type { BannerKind, DailyMessage, Note, Prisma, Sprint } from "@/generated/prisma/client";
 import { HttpError } from "@/lib/api/http";
 import { prisma } from "@/lib/db/prisma";
 import { listRequests } from "@/lib/integrations/seerr/client";
@@ -9,13 +9,13 @@ import type { BannerDto, BannerPayload, SourceStateDto, TimelineResponse, TodayR
 import { parseSnapshotPayload } from "./banner-payload";
 import { alertInclude, type AlertRow, cardInclude, type CardRow, dateOnly, toAlertDto, toDbDate, toSprintDto, toWorkCardDto } from "./dto";
 import { type CheckinRow, findCheckin, toCheckinDto, weekOf } from "./checkin";
-import { listVisibleWaitingItems, toWaitingItemDto } from "./waiting";
+import { listVisibleNotes, toNoteDto } from "./notes";
 
 // GET /api/today: everything the page needs in one call.
 // Each integration degrades on its own: a failing Seerr or
 // calendar sync shows up in `sources`, never as a 500.
 
-/** The Waiting panel's Seerr count is read live; the page must not wait longer than this for it. */
+/** The Notes panel's Seerr count is read live; the page must not wait longer than this for it. */
 export const SEERR_TODAY_TIMEOUT_MS = 3_000;
 /** The worker syncs the calendar every 2 minutes; no successful sync for this long means it is down. */
 export const CALENDAR_STALE_MS = 10 * 60_000;
@@ -46,8 +46,8 @@ export interface TodayParts {
   snapshots: SnapshotRow[];
   dailyMessage: DailyMessage | null;
   seerr: SeerrCheck;
-  /** Custom "Waiting on you" items with count > 0, in position order. */
-  waitingItems: WaitingItem[];
+  /** Notes the page shows (count 0 left out), newest first. */
+  notes: Note[];
   /** The check-in for the week `date` falls in, if Hermes wrote one. */
   checkin: CheckinRow | null;
   links: { sonarrUrl: string | null; radarrUrl: string | null; seerrUrl: string | null };
@@ -153,6 +153,7 @@ export function assembleToday(parts: TodayParts): TodayResponse {
       : null,
     gmail: bannerSlide(parts.snapshots, "gmail"),
     orphans: bannerSlide(parts.snapshots, "orphans"),
+    orphanLinks: { sonarrUrl: parts.links.sonarrUrl, radarrUrl: parts.links.radarrUrl },
     scan: bannerSlide(parts.snapshots, "scan"),
     stocks: bannerSlide(parts.snapshots, "stocks"),
     checkin: parts.checkin ? toCheckinDto(parts.checkin, sprintProgress(parts)) : null,
@@ -171,17 +172,10 @@ export function assembleToday(parts: TodayParts): TodayResponse {
     },
     warnings: {
       alerts: parts.alerts.map(toAlertDto),
-      waiting: {
-        gmailNeedsReply: banner.gmail?.data.needsReply.length ?? 0,
+      notes: {
         seerrPending: parts.seerr.count,
-        orphans: {
-          sonarr: banner.orphans?.data.counts.sonarr ?? 0,
-          radarr: banner.orphans?.data.counts.radarr ?? 0,
-          sonarrUrl: parts.links.sonarrUrl,
-          radarrUrl: parts.links.radarrUrl,
-        },
         seerrUrl: parts.links.seerrUrl,
-        custom: parts.waitingItems.map(toWaitingItemDto),
+        items: parts.notes.map(toNoteDto),
       },
     },
     sources: {
@@ -210,7 +204,7 @@ async function latestSnapshots(): Promise<SnapshotRow[]> {
 
 export async function getToday(date: string, now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<TodayResponse> {
   const timeZone = dashboardTimeZone(env);
-  const [timeline, activeSprint, cards, alerts, snapshots, dailyMessage, seerr, waitingItems, checkin] = await Promise.all([
+  const [timeline, activeSprint, cards, alerts, snapshots, dailyMessage, seerr, notes, checkin] = await Promise.all([
     getTimeline(date, now, env),
     // D8 allows one active sprint; if a race ever leaves two, show the newest.
     prisma.sprint.findFirst({ where: { status: "active" }, orderBy: [{ startsOn: "desc" }, { updatedAt: "desc" }] }),
@@ -219,11 +213,11 @@ export async function getToday(date: string, now = new Date(), env: NodeJS.Proce
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       include: cardInclude(now),
     }),
-    prisma.alert.findMany({ where: { resolvedAt: null }, orderBy: { openedAt: "asc" }, include: alertInclude(now) }),
+    prisma.alert.findMany({ where: { resolvedAt: null, dismissedAt: null }, orderBy: { openedAt: "asc" }, include: alertInclude(now) }),
     latestSnapshots(),
     prisma.dailyMessage.findUnique({ where: { date: toDbDate(date) } }),
     liveSeerrPending(now, env),
-    listVisibleWaitingItems(),
+    listVisibleNotes(),
     findCheckin(weekOf(date)),
   ]);
 
@@ -238,7 +232,7 @@ export async function getToday(date: string, now = new Date(), env: NodeJS.Proce
     snapshots,
     dailyMessage,
     seerr,
-    waitingItems,
+    notes,
     checkin,
     links: {
       sonarrUrl: linkFromEnv(env.SONARR_URL),

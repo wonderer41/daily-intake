@@ -1,15 +1,19 @@
-// Runs one GitHub card-meta sync (the worker's github-sync job) and prints a line per card.
+// Runs one GitHub sync (the worker's github-sync job): the card meta line, then the push watch.
+// Prints a line per card and per watched branch. Reviews themselves run in the worker.
 // Usage: npm run sync:github
 import "dotenv/config";
 import { prisma } from "@/lib/db/prisma";
 import { formatMetaLine } from "@/lib/dashboard/meta-line";
 import { type CardMetaOutcome, syncGithubCardMeta } from "@/lib/integrations/github/card-meta";
+import { formatPushWatchResult, syncPushWatches } from "@/lib/push-review/detect";
 import { dashboardTimeZone } from "@/lib/time/zone";
+import { pushWatchInput } from "@/lib/worker/github-job";
 
 async function main(): Promise<void> {
   const timeZone = dashboardTimeZone();
   const now = new Date();
-  const { updated, unchanged, failed } = await syncGithubCardMeta(now);
+  const result = await syncGithubCardMeta(now);
+  const { updated, unchanged, failed } = result;
 
   const rows = [
     ...updated.map((entry) => ({ entry, status: "updated" })),
@@ -26,7 +30,17 @@ async function main(): Promise<void> {
   const repoWidth = Math.max(...lines.map(({ repo }) => repo.length));
   const lineWidth = Math.max(...lines.map(({ line }) => line.length));
   for (const { repo, line, status } of lines) console.log(`${repo.padEnd(repoWidth)}  ${line.padEnd(lineWidth)}  (${status})`);
-  if (failed.length > 0) process.exitCode = 1;
+
+  const pushes = await syncPushWatches(now, pushWatchInput(result));
+  console.log(`\n${formatPushWatchResult(pushes)}`);
+  const watches = await prisma.pushWatch.findMany({ orderBy: [{ repo: "asc" }, { ref: "asc" }] });
+  for (const watch of watches) {
+    const where = watch.prNumber === null ? watch.branch : `#${watch.prNumber} ${watch.branch}`;
+    const state = watch.reviewedSha === watch.headSha ? "reviewed" : `waiting for review (from ${watch.reviewedSha?.slice(0, 7) ?? "the start"})`;
+    const error = watch.lastError ? ` · last error: ${watch.lastError}` : "";
+    console.log(`${watch.repo}  ${where}  ${watch.headSha.slice(0, 7)}  ${state}${error}`);
+  }
+  if (failed.length > 0 || pushes.failed.length > 0) process.exitCode = 1;
 }
 
 main()

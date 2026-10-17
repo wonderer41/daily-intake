@@ -36,11 +36,11 @@ export function SectionTitle({ as: Tag = "h2", size = 40, className, ...rest }: 
 
 export interface RailTitleProps extends ComponentPropsWithoutRef<"h2"> {
   as?: "h2" | "h3";
-  /** "amber" inside the Broken panel; otherwise #F1F4EF. */
+  /** "amber" inside the Important panel; otherwise #F1F4EF. */
   tone?: "strong" | "amber";
 }
 
-/** Cormorant 30px / 600 for the Warnings rail ("Broken", "Waiting on you"). */
+/** Cormorant 30px / 600 for the Warnings rail ("Important", "Notes"). */
 export function RailTitle({ as: Tag = "h2", tone = "strong", className, ...rest }: RailTitleProps) {
   return (
     <Tag

@@ -1,24 +1,24 @@
 import { formatClock, localDateString } from "@/lib/time/zone";
-import type { AlertDto, SeerrDecisionResponse, SeerrRequestDto, TodayResponse, WaitingDto } from "@/types/dashboard-contracts";
+import type {
+  AlertDto,
+  ChecklistItemDto,
+  ItemProgressDto,
+  NoteDto,
+  NotesDto,
+  SeerrDecisionResponse,
+  SeerrRequestDto,
+  TodayResponse,
+  WorkCardDto,
+} from "@/types/dashboard-contracts";
 import { isApiRequestError } from "../../api";
 
 // Pure text and state helpers for the Warnings rail (no React), so they can be unit-tested.
-
-/** "1 movie", "3 movies". */
-export function countLabel(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
-
-/** Gmail item: "1 starred thread needs a reply" / "3 starred threads need a reply". */
-export function gmailLine(count: number): string {
-  return count === 1 ? "1 starred thread needs a reply" : `${count} starred threads need a reply`;
-}
 
 /** Seerr card: the count is "?" while Seerr can't be asked. */
 export function seerrSummary(count: number | null): string {
   if (count === 0) return "No requests waiting";
   if (count === null) return "? guest requests to approve";
-  return `${countLabel(count, "guest request", "guest requests")} to approve`;
+  return `${count} ${count === 1 ? "guest request" : "guest requests"} to approve`;
 }
 
 /** "season 1", "seasons 1–3", "seasons 1–2, 5"; Seerr's season 0 is Specials. Null for movies / no seasons. */
@@ -104,17 +104,14 @@ export function requestErrorText(error: unknown): string {
 }
 
 /**
- * Optimistic count while a decision is in flight: sets (never decrements) the Waiting count to at
+ * Optimistic count while a decision is in flight: sets (never decrements) the Seerr count to at
  * most `target`, so re-applying it on every refresh, or after the server already counted the
  * change, never drops it twice. A null count (Seerr down) is left alone.
  */
 export function withSeerrPendingAtMost(today: TodayResponse, target: number): TodayResponse {
-  const current = today.warnings.waiting.seerrPending;
+  const current = today.warnings.notes.seerrPending;
   if (current === null || current <= target) return today;
-  return {
-    ...today,
-    warnings: { ...today.warnings, waiting: { ...today.warnings.waiting, seerrPending: target } },
-  };
+  return withNotes(today, { ...today.warnings.notes, seerrPending: target });
 }
 
 // ---------- The bubble's list ----------
@@ -179,27 +176,104 @@ export function moreInSeerr(count: number | null, pendingShown: number): number 
   return count - pendingShown;
 }
 
-// ---------- Panels ----------
+// ---------- Notes ----------
 
-export interface WaitingVisibility {
-  gmail: boolean;
-  seerr: boolean;
-  orphans: boolean;
-  /** "Nothing waiting." */
-  nothing: boolean;
+function withNotes(today: TodayResponse, notes: NotesDto): TodayResponse {
+  return { ...today, warnings: { ...today.warnings, notes } };
 }
 
 /**
- * Each item hides at zero. Seerr stays while Seerr is down (count "?") and while its bubble is
- * open, so approving the last request doesn't yank the bubble away. `seerrOk` null means Seerr isn't
- * set up on the server, so it never shows.
+ * Seerr shows while it has requests, while it is down (count "?") and while its bubble is open, so
+ * approving the last request doesn't yank the bubble away. `seerrOk` null means Seerr isn't set up
+ * on the server, so it never shows.
  */
-export function waitingVisibility(waiting: WaitingDto, seerrOk: boolean | null, seerrOpen: boolean): WaitingVisibility {
-  const gmail = waiting.gmailNeedsReply > 0;
-  const seerr = seerrOk !== null && (seerrOpen || !seerrOk || waiting.seerrPending === null || waiting.seerrPending > 0);
-  const orphans = waiting.orphans.sonarr > 0 || waiting.orphans.radarr > 0;
-  const custom = waiting.custom.some((item) => item.count > 0);
-  return { gmail, seerr, orphans, nothing: !gmail && !seerr && !orphans && !custom };
+export function showSeerr(notes: NotesDto, seerrOk: boolean | null, seerrOpen: boolean): boolean {
+  return seerrOk !== null && (seerrOpen || !seerrOk || notes.seerrPending === null || notes.seerrPending > 0);
+}
+
+/** Optimistic delete. */
+export function withoutNote(today: TodayResponse, id: string): TodayResponse {
+  const { notes } = today.warnings;
+  return withNotes(today, { ...notes, items: notes.items.filter((note) => note.id !== id) });
+}
+
+/** Optimistic edit of one of Gerardo's notes. */
+export function withNoteEdit(today: TodayResponse, id: string, change: Pick<NoteDto, "text" | "url">): TodayResponse {
+  const { notes } = today.warnings;
+  return withNotes(today, { ...notes, items: notes.items.map((note) => (note.id === id ? { ...note, ...change } : note)) });
+}
+
+/** "" or whitespace = no link. Anything else must be http(s), like the server checks. */
+export function noteLinkError(raw: string): string | null {
+  const value = raw.trim();
+  if (value === "") return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? null : "The link must start with http:// or https://";
+  } catch {
+    return "That doesn't look like a link (https://…)";
+  }
+}
+
+// ---------- Important ----------
+
+export type ImportantEntry =
+  | { kind: "alert"; alert: AlertDto; at: string }
+  | { kind: "push"; card: WorkCardDto; item: ChecklistItemDto; update: ItemProgressDto; at: string };
+
+export interface ImportantGroup {
+  key: string;
+  /** Shown as the group's eyebrow: "Critical", the alert's source, or "GitHub" for push updates. */
+  label: string;
+  entries: ImportantEntry[];
+}
+
+/** Push updates' group label. */
+export const PUSH_GROUP_LABEL = "GitHub";
+
+function newestFirst(a: { at: string }, b: { at: string }): number {
+  return Date.parse(b.at) - Date.parse(a.at);
+}
+
+/**
+ * Important's order: critical alerts first, then one group per alert source plus one for the push
+ * updates still waiting on a card's items (GitHub alerts join that one). Groups are ordered by their newest entry, and entries
+ * inside a group newest first.
+ */
+export function importantGroups(alerts: readonly AlertDto[], cards: readonly WorkCardDto[]): ImportantGroup[] {
+  const critical: ImportantEntry[] = [];
+  const groups = new Map<string, ImportantGroup>();
+  const add = (key: string, label: string, entry: ImportantEntry) => {
+    const group = groups.get(key) ?? { key, label, entries: [] };
+    group.entries.push(entry);
+    groups.set(key, group);
+  };
+
+  for (const alert of alerts) {
+    if (alert.resolvedAt !== null || alert.dismissedAt !== null) continue;
+    const entry: ImportantEntry = { kind: "alert", alert, at: alert.openedAt };
+    if (alert.severity === "critical") critical.push(entry);
+    // GitHub alerts (e.g. a push review that failed) share the push updates' group.
+    else if (alert.source.toLowerCase() === "github") add("push", PUSH_GROUP_LABEL, entry);
+    else add(`source:${alert.source}`, alert.source, entry);
+  }
+  for (const card of cards) {
+    for (const item of card.items) {
+      if (item.done) continue;
+      for (const update of item.progress) {
+        if (update.status === "pending") add("push", PUSH_GROUP_LABEL, { kind: "push", card, item, update, at: update.pushedAt });
+      }
+    }
+  }
+
+  const sorted = [...groups.values()].map((group) => ({ ...group, entries: [...group.entries].sort(newestFirst) }));
+  sorted.sort((a, b) => newestFirst(a.entries[0], b.entries[0]));
+  return critical.length > 0 ? [{ key: "critical", label: "Critical", entries: critical.sort(newestFirst) }, ...sorted] : sorted;
+}
+
+/** Optimistic dismiss. */
+export function withoutAlert(today: TodayResponse, id: string): TodayResponse {
+  return { ...today, warnings: { ...today.warnings, alerts: today.warnings.alerts.filter((alert) => alert.id !== id) } };
 }
 
 /** Booked block tag: "19:00–20:30" today, "Oct 15 · 19:00–20:30" on another day. */

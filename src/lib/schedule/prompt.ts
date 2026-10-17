@@ -1,6 +1,6 @@
 import { localDateString, zonedTimeToUtc } from "@/lib/time/zone";
 
-/** What the block is for: a checklist item on a Working-on card, or an open Broken alert. */
+/** What the block is for: a checklist item on a Working-on card, or an open alert in Important. */
 export type BookingSubject =
   | { kind: "item"; id: string; cardTitle: string; itemTitle: string; issueNumber: number | null; url: string | null }
   | { kind: "alert"; id: string; title: string };

@@ -12,14 +12,16 @@ file directly (no barrel), e.g. `import { Button } from "@/components/ui/button"
 | `ui/button` | `Button` | `variant="primary" \| "secondary" \| "alert" \| "ghost" \| "icon"`, `size="sm"` (13px, 3px shadow). Icon buttons require `aria-label`. `type` defaults to `"button"`. |
 | `ui/chip` | `Chip` | `tone="in-progress"` (also booked time tags) `\| "open" \| "neutral"`. |
 | `ui/segmented-control` | `SegmentedControl` | Two options, `aria-pressed`, `label` names the group. 36px look, 44px hit area. |
-| `ui/typography` | `Eyebrow`, `SectionTitle`, `RailTitle` | Mono .16em eyebrow (`tone="muted" \| "reflection"`); Cormorant 40/36px (`size`); rail 30px (`tone="amber"` in Broken). |
+| `ui/typography` | `Eyebrow`, `SectionTitle`, `RailTitle` | Mono .16em eyebrow (`tone="muted" \| "reflection"`); Cormorant 40/36px (`size`); rail 30px (`tone="amber"` in Important). |
 | `ui/progress-segments` | `ProgressSegments` | `segments: boolean[]` in checklist order, `label` required (role progressbar). |
 | `ui/checkbox` | `CheckboxRow` | Native checkbox; the row is the label (48px). `checked` + `onCheckedChange`. Checked rows go #7E8C87; children inherit `currentColor`. |
 | `ui/inputs` | `TextInput`, `NumberInput`, `TimeInput`, `Field` | Square mono inputs, 44px. Wrap in `Field label="Start"`. `aria-invalid` turns the border amber. The native time picker follows the browser locale (12 h in en-US). |
 | `ui/bubble` | `Bubble` | Hermes / Seerr bubble with the rotated-square tail. `label` (role group), optional `heading`, `onClose` (× button + Escape), `tail={{ side, offset }}` or `null`. |
 | `ui/source-down` | `SourceDown`, `formatSourceDown` | "Calendar unavailable — last synced 10:42". Renders nothing when `source.ok`. Pass `now` and `timeZone` from `useDashboard()`. |
 | `ui/skeleton` | `Skeleton`, `SkeletonPanel` | Shimmer blocks (static under reduced motion); a panel-shaped placeholder with the real title. |
-| `ui/icons` | `ChevronLeft/Right/DownIcon`, `CloseIcon`, `ChatIcon`, `WarningIcon`, `CommitIcon`, `CheckIcon`, `ExternalIcon` | 24-grid stroke SVGs, `aria-hidden`; `size`, `strokeWidth`. |
+| `ui/icons` | `ChevronLeft/Right/DownIcon`, `CloseIcon`, `PersonIcon`, `ChatIcon`, `WarningIcon`, `CommitIcon`, `CheckIcon`, `ExternalIcon` | 24-grid stroke SVGs, `aria-hidden`; `size`, `strokeWidth`. |
+| `ui/github-mark` | `GitHubMark` | The GitHub mark (Octicons, MIT) as one `currentColor` path, `aria-hidden`; `size` (20 by default). |
+| `ui/hermes-logo` | `HermesLogo` | The Hermes Agent logo as one `currentColor` path, `aria-hidden`; `size` (20 by default). Name it in text next to it. |
 | `ui/cx` | `cx` | Class-name join. |
 
 Rules

@@ -34,12 +34,14 @@ function updateItem(today: TodayResponse, cardId: string, itemId: string, change
 }
 
 /**
- * The checkbox. A checked item shows no push notes (the server hides them too); unchecking keeps
- * whatever notes the item has until the next refresh brings the pending ones back.
+ * The checkbox (checked by "user"). A checked item shows no push notes (the server hides them too);
+ * unchecking keeps whatever notes the item has until the next refresh brings the pending ones back.
  */
 export function setItemDone(today: TodayResponse, cardId: string, itemId: string, done: boolean, at: string): TodayResponse {
   return updateItem(today, cardId, itemId, (item) =>
-    item.done === done ? item : { ...item, done, doneAt: done ? at : null, progress: done ? [] : item.progress },
+    item.done === done
+      ? item
+      : { ...item, done, doneAt: done ? at : null, doneBy: done ? "user" : null, donePush: null, progress: done ? [] : item.progress },
   );
 }
 
@@ -48,12 +50,15 @@ export function dropProgress(today: TodayResponse, cardId: string, itemId: strin
   return updateItem(today, cardId, itemId, (item) => ({ ...item, progress: item.progress.filter((note) => note.id !== progressId) }));
 }
 
-/** Confirm (D7): a looks_done note also checks the item; a partial one just goes away. */
+/** Confirm (D7): a looks_done note also checks the item, as "push"; a partial one just goes away. */
 export function confirmProgress(today: TodayResponse, cardId: string, itemId: string, progressId: string, at: string): TodayResponse {
   const item = today.workingOn.cards.find((card) => card.id === cardId)?.items.find((entry) => entry.id === itemId);
   const note = item?.progress.find((entry) => entry.id === progressId);
-  if (note?.kind === "looks_done") return setItemDone(today, cardId, itemId, true, at);
-  return dropProgress(today, cardId, itemId, progressId);
+  if (note?.kind !== "looks_done") return dropProgress(today, cardId, itemId, progressId);
+  const donePush = { repoFullName: note.repoFullName, commitSha: note.commitSha, commitUrl: note.commitUrl };
+  return updateItem(today, cardId, itemId, (entry) =>
+    entry.done ? entry : { ...entry, done: true, doneAt: at, doneBy: "push", donePush, progress: [] },
+  );
 }
 
 /** A new deadline (or none) on an item. */

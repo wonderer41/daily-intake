@@ -6,7 +6,7 @@ type SurfaceTag = "section" | "div" | "aside" | "article";
 const PADDING = {
   /** 28px: Working on (and the default). */
   section: "p-7",
-  /** 22px: Broken and Waiting on you. */
+  /** 22px: Important and Notes. */
   rail: "p-[22px]",
   /** No padding: the banner, whose slides pad themselves. */
   none: "",
@@ -14,13 +14,13 @@ const PADDING = {
 
 export interface GlassPanelProps extends ComponentPropsWithoutRef<"section"> {
   as?: SurfaceTag;
-  /** "glass" = pond glass with the light hairline; "broken" = the amber Broken panel. */
+  /** "glass" = pond glass with the light hairline; "broken" = the amber Important panel. */
   tone?: "glass" | "broken";
   pad?: keyof typeof PADDING;
 }
 
 /**
- * The glass surface: banner, Working on, Waiting on you, Broken.
+ * The glass surface: banner, Working on, Important, Notes.
  * Give it an accessible name when it is a landmark: aria-label or aria-labelledby on a section/aside.
  */
 export function GlassPanel({ as: Tag = "section", tone = "glass", pad = "section", className, ...rest }: GlassPanelProps) {

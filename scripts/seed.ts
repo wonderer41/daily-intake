@@ -4,7 +4,7 @@
 //
 // Idempotent: every row has a stable seed key, so running it again updates the same rows (and
 // moves the timeline to today) instead of adding more. Keys: sprint/cards/items use externalKey
-// "seed:…", the alert dedupeKey "seed:…", calendar events calendarId "seed" (the Google sync only
+// "seed:…", the alert dedupeKey and the Hermes note key "seed:…", calendar events calendarId "seed" (the Google sync only
 // touches its own calendarId, so it never cancels them), banner snapshots fixed ids 5eed0000-….
 // The daily message is matched by its text. Real rows are never changed: the sprint is only made
 // active when no other sprint is, and a daily message someone else wrote for today is kept.
@@ -22,6 +22,7 @@ import type { LiveEvent } from "@/types/dashboard-contracts";
 const SEED_PREFIX = "seed:";
 const SPRINT_KEY = "seed:sprint";
 const ALERT_KEY = "seed:alert:vm100-backup";
+const NOTE_KEY = "seed:prs-to-review";
 const DAILY_MESSAGE = "[Your message for today]";
 const SNAPSHOT_IDS: Record<BannerKind, string> = {
   gmail: "5eed0000-0000-4000-8000-000000000001",
@@ -135,7 +136,7 @@ async function seed(): Promise<void> {
   // A local wall-clock time today, never later than now (so "since 08:00" is not in the future before 08:00).
   const at = (minutes: number) => new Date(Math.min(now.getTime(), zonedTimeToUtc(today, minutes, timeZone).getTime()));
   const events: LiveEvent[] = [];
-  const counts = { sprint: tally(), cards: tally(), items: tally(), events: tally(), snapshots: tally(), alert: tally(), message: tally() };
+  const counts = { sprint: tally(), cards: tally(), items: tally(), events: tally(), snapshots: tally(), alert: tally(), note: tally(), message: tally() };
   let sprintNote = "";
   let messageNote = "";
 
@@ -205,6 +206,8 @@ async function seed(): Promise<void> {
           const existingItem = await tx.checklistItem.findUnique({ where: { externalKey: itemKey } });
           // A done item keeps the doneAt it already has; a new one is spread over the last days.
           const doneAt = item.done ? (existingItem?.done && existingItem.doneAt ? existingItem.doneAt : new Date(now.getTime() - (card.items.length - itemIndex) * DAY_MS)) : null;
+          // Who checked it is kept too (e.g. a push update confirmed on the page); new ones are "user".
+          const kept = item.done && existingItem?.done ? existingItem : null;
           const itemData = {
             cardId,
             title: item.title,
@@ -212,6 +215,8 @@ async function seed(): Promise<void> {
             sourceUrl: null,
             done: item.done,
             doneAt,
+            doneBy: item.done ? (kept?.doneBy ?? "user") : null,
+            doneProgressId: kept?.doneProgressId ?? null,
             isCurrent: item.isCurrent ?? false,
             position: (itemIndex + 1) * 1000,
             createdBy: "user" as const,
@@ -329,7 +334,7 @@ async function seed(): Promise<void> {
         events.push({ type: "banner.updated", kind: snapshot.kind });
       }
 
-      // ---------- One open alert for the Broken panel ----------
+      // ---------- One open alert for Important ----------
       const alertData = { source: "proxmox", title: "VM 100 backup missed", detail: "vzdump · Sun 01:00", severity: "warning" as const, resolvedAt: null };
       const existingAlert = await tx.alert.findUnique({ where: { dedupeKey: ALERT_KEY } });
       if (!existingAlert) {
@@ -342,6 +347,19 @@ async function seed(): Promise<void> {
         counts.alert.updated += 1;
         events.push({ type: "alert.changed", alertId: existingAlert.id });
       } else counts.alert.unchanged += 1;
+
+      // ---------- One Hermes note ----------
+      const noteData = { author: "hermes" as const, text: "PRs to review", detail: "oldest from Monday", url: "https://github.com/pulls", count: 2 };
+      const existingNote = await tx.note.findUnique({ where: { key: NOTE_KEY } });
+      if (!existingNote) {
+        await tx.note.create({ data: { key: NOTE_KEY, ...noteData } });
+        counts.note.created += 1;
+        events.push({ type: "notes.changed" });
+      } else if (differs(existingNote, noteData)) {
+        await tx.note.update({ where: { id: existingNote.id }, data: noteData });
+        counts.note.updated += 1;
+        events.push({ type: "notes.changed" });
+      } else counts.note.unchanged += 1;
 
       // ---------- Daily message (kept if someone else already wrote today's) ----------
       const date = toDbDate(today);
@@ -370,6 +388,7 @@ async function seed(): Promise<void> {
   line("calendar events", counts.events);
   line("banner snapshots", counts.snapshots);
   line("alert", counts.alert);
+  line("note", counts.note);
   line("daily message", counts.message, messageNote);
   console.log(`  live events        ${events.length} published`);
   console.log("Remove with: npm run db:seed -- --clean");
@@ -386,11 +405,12 @@ async function clean(): Promise<void> {
   ]);
 
   // Items, their progress notes and schedule requests go with their card (onDelete: Cascade).
-  const [calendarEvents, cardRows, sprintRows, alertRows, snapshots, messages] = await prisma.$transaction([
+  const [calendarEvents, cardRows, sprintRows, alertRows, noteRows, snapshots, messages] = await prisma.$transaction([
     prisma.calendarEvent.deleteMany({ where: { calendarId: SEED_CALENDAR_ID } }),
     prisma.workCard.deleteMany({ where: { externalKey: { startsWith: SEED_PREFIX } } }),
     prisma.sprint.deleteMany({ where: { externalKey: { startsWith: SEED_PREFIX } } }),
     prisma.alert.deleteMany({ where: { dedupeKey: { startsWith: SEED_PREFIX } } }),
+    prisma.note.deleteMany({ where: { key: { startsWith: SEED_PREFIX } } }),
     prisma.bannerSnapshot.deleteMany({ where: { id: { in: Object.values(SNAPSHOT_IDS) } } }),
     prisma.dailyMessage.deleteMany({ where: { text: DAILY_MESSAGE } }),
   ]);
@@ -403,11 +423,12 @@ async function clean(): Promise<void> {
   ];
   if (snapshots.count > 0) events.push(...(["gmail", "orphans", "scan", "stocks"] as const).map((kind) => ({ type: "banner.updated" as const, kind })));
   if (messages.count > 0) events.push({ type: "banner.updated", kind: "dailyMessage" });
+  if (noteRows.count > 0) events.push({ type: "notes.changed" });
   for (const event of events) await publishLiveEvent(event);
 
   console.log("Removed seed rows:");
   console.log(`  sprints ${sprintRows.count} · cards ${cardRows.count} (with their items) · calendar events ${calendarEvents.count}`);
-  console.log(`  banner snapshots ${snapshots.count} · alerts ${alertRows.count} · daily messages ${messages.count}`);
+  console.log(`  banner snapshots ${snapshots.count} · alerts ${alertRows.count} · notes ${noteRows.count} · daily messages ${messages.count}`);
 }
 
 const run = process.argv.slice(2).includes("--clean") ? clean : seed;

@@ -37,6 +37,7 @@ function itemChanges(
   input: ItemInput,
   cardId: string,
   now: Date,
+  actor: Actor,
 ): { fields: string[]; data: Prisma.ChecklistItemUncheckedUpdateManyInput } {
   const fields: string[] = [];
   const data: Prisma.ChecklistItemUncheckedUpdateManyInput = {};
@@ -59,7 +60,11 @@ function itemChanges(
   set("isCurrent", input.isCurrent);
   set("position", input.position);
   set("done", input.done);
-  if (fields.includes("done")) data.doneAt = input.done ? now : null;
+  if (fields.includes("done")) {
+    data.doneAt = input.done ? now : null;
+    data.doneBy = input.done ? actor : null;
+    data.doneProgressId = null;
+  }
   return { fields, data };
 }
 
@@ -110,6 +115,7 @@ export async function upsertItem(
               dueOn: toDueOn(input.dueOn ?? null),
               done,
               doneAt: done ? now : null,
+              doneBy: done ? actor : null,
               isCurrent,
               position: input.position ?? (await nextItemPosition(tx, card.id)),
               createdBy: actor,
@@ -119,7 +125,7 @@ export async function upsertItem(
         }
 
         const moved = existing.cardId !== card.id;
-        const changes = itemChanges(existing, input, card.id, now);
+        const changes = itemChanges(existing, input, card.id, now, actor);
         if (changes.fields.length === 0) {
           return { itemId: existing.id, cardId: card.id, previousCardId: null, created: false, changed: false, clearedIds: [] };
         }

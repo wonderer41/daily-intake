@@ -10,7 +10,7 @@ section agent replaces the body and keeps the **export name and props**.
 | `banner.tsx` | `{ banner: BannerDto }` | `banner.updated` |
 | `timeline.tsx` | `{ timeline: TimelineResponse; now: string; date: string; calendar: SourceStateDto }` | `timeline.changed`, `day.rollover`, `schedule.updated` |
 | `working-on.tsx` | `{ activeSprint: SprintDto \| null; cards: WorkCardDto[] }` | `card.upserted`, `card.removed`, `item.upserted`, `sprint.upserted`, `schedule.updated` |
-| `warnings-rail.tsx` | `{ alerts: AlertDto[]; waiting: WaitingDto; sources: TodayResponse["sources"] }` | `alert.changed`, `seerr.changed`, `banner.updated` (gmail/orphans counts) |
+| `warnings-rail.tsx` | `{ alerts: AlertDto[]; cards: WorkCardDto[]; notes: NotesDto; sources: TodayResponse["sources"] }` (Important = alerts + the cards' pending push updates; Notes) | `alert.changed`, `item.upserted`, `notes.changed`, `seerr.changed` |
 
 You don't need to react to these yourself: **every** live event (and every stream reconnect) already makes the
 dashboard refetch `/api/today` and re-render you with new props. Subscribe only for data your section loads on
@@ -45,7 +45,7 @@ Rules
 - All dates and clocks use `timeZone` (DASHBOARD_TIME_ZONE) via `src/lib/time/zone.ts` (`formatClock`, `localDateString`, …).
 - `isToday` is false for `?date=` in the past or future (past = read-only, future = editable).
 - Source down: render `<SourceDown …>` inside your section and keep everything else working (calendar → Timeline,
-  `sources.seerr` → the Seerr item of Waiting on you). Never blank the section.
+  `sources.seerr` → the Seerr item of Notes). Never blank the section.
 - Layout: the dashboard sets the outer column widths; your root fills its column. The mockup's Timeline is **not**
   a glass panel (cards sit on the painting); the stub uses one only as a placeholder.
 - No UI or state libraries; use `src/components/ui/*` (see its README). New primitive → own file + note in your report.

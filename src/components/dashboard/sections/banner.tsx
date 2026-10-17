@@ -34,7 +34,15 @@ function SlideBody({ id, banner, timeZone, now }: SlideBodyProps) {
     case "gmail":
       return banner.gmail ? <GmailSlide data={banner.gmail.data} timeZone={timeZone} now={now} /> : null;
     case "infra":
-      return <InfraSlide orphans={banner.orphans?.data ?? null} scan={banner.scan?.data ?? null} timeZone={timeZone} now={now} />;
+      return (
+        <InfraSlide
+          orphans={banner.orphans?.data ?? null}
+          orphanLinks={banner.orphanLinks}
+          scan={banner.scan?.data ?? null}
+          timeZone={timeZone}
+          now={now}
+        />
+      );
     case "stocks":
       return banner.stocks ? <StocksSlide data={banner.stocks.data} /> : null;
   }

@@ -3,7 +3,7 @@ import test from "node:test";
 import type { Sprint } from "@/generated/prisma/client";
 import { HttpError } from "@/lib/api/http";
 import type { TimelineResponse } from "@/types/dashboard-contracts";
-import type { AlertRow, CardRow } from "./dto";
+import { type AlertRow, type CardRow, itemDoneBy, toChecklistItemDto } from "./dto";
 import { assembleToday, CALENDAR_STALE_MS, calendarSource, checkSeerrCount, linkFromEnv, type SnapshotRow, type TodayParts } from "./today";
 
 const NOW = new Date("2026-10-14T17:45:00.000Z"); // 11:45 in Denver
@@ -48,6 +48,8 @@ function item(id: string, position: number, done: boolean, isCurrent = false): C
     dueOn: null,
     done,
     doneAt: done ? AT : null,
+    doneBy: done ? "user" : null,
+    doneProgressId: null,
     isCurrent,
     position,
     createdBy: "user",
@@ -56,6 +58,7 @@ function item(id: string, position: number, done: boolean, isCurrent = false): C
     updatedAt: AT,
     calendarEvents: [],
     progress: [],
+    doneProgress: null,
   };
 }
 
@@ -88,9 +91,11 @@ const alert: AlertRow = {
   source: "proxmox",
   title: "VM 100 backup missed",
   detail: "vzdump · Sun 01:00",
+  url: null,
   severity: "warning",
   openedAt: AT,
   resolvedAt: null,
+  dismissedAt: null,
   meta: {},
   updatedAt: AT,
   calendarEvents: [],
@@ -127,7 +132,9 @@ function parts(overrides: Partial<TodayParts> = {}): TodayParts {
     snapshots: [gmail, orphans],
     dailyMessage: { date: new Date("2026-10-14T00:00:00Z"), text: "Go slow.", author: "hermes", updatedAt: AT },
     seerr: { count: 2, source: { ok: true, lastSyncAt: NOW.toISOString(), error: null } },
-    waitingItems: [],
+    notes: [
+      { id: "note-1", key: "github:prs-to-review", author: "hermes", text: "PRs to review", detail: null, url: null, count: 3, createdAt: AT, updatedAt: AT },
+    ],
     checkin: null,
     links: { sonarrUrl: "https://sonarr.example.com", radarrUrl: null, seerrUrl: "https://requests.example.com" },
     ...overrides,
@@ -151,13 +158,25 @@ test("today: assembles banner, working-on, warnings and sources from what was re
   assert.deepEqual(first.current, { itemId: "b", label: "now" });
 
   assert.deepEqual(today.warnings.alerts.map((a) => a.title), ["VM 100 backup missed"]);
-  assert.deepEqual(today.warnings.waiting, {
-    gmailNeedsReply: 1,
+  assert.equal(today.warnings.alerts[0].dismissedAt, null);
+  assert.deepEqual(today.warnings.notes, {
     seerrPending: 2,
-    orphans: { sonarr: 5, radarr: 1, sonarrUrl: "https://sonarr.example.com", radarrUrl: null },
     seerrUrl: "https://requests.example.com",
-    custom: [],
+    items: [
+      {
+        id: "note-1",
+        author: "hermes",
+        key: "github:prs-to-review",
+        text: "PRs to review",
+        detail: null,
+        url: null,
+        count: 3,
+        createdAt: AT.toISOString(),
+        updatedAt: AT.toISOString(),
+      },
+    ],
   });
+  assert.deepEqual(today.banner.orphanLinks, { sonarrUrl: "https://sonarr.example.com", radarrUrl: null });
   assert.deepEqual(today.sources.calendar, { ok: true, lastSyncAt: today.timeline.lastSyncAt, error: null });
   assert.equal(today.sources.seerr?.ok, true);
 });
@@ -169,14 +188,13 @@ test("today: missing or malformed snapshots hide their slide and count as zero",
   assert.equal(today.banner.orphans, null);
   assert.equal(today.banner.dailyMessage, null);
   assert.equal(today.workingOn.activeSprint, null);
-  assert.equal(today.warnings.waiting.gmailNeedsReply, 0);
-  assert.deepEqual([today.warnings.waiting.orphans.sonarr, today.warnings.waiting.orphans.radarr], [0, 0]);
+  assert.equal(today.banner.orphans, null);
 });
 
 test("today: an unavailable Seerr shows as null plus its reason, not an error", () => {
   const seerr = { count: null, source: { ok: false, lastSyncAt: null, error: "SEERR_URL is not configured" } };
   const today = assembleToday(parts({ seerr }));
-  assert.equal(today.warnings.waiting.seerrPending, null);
+  assert.equal(today.warnings.notes.seerrPending, null);
   assert.deepEqual(today.sources.seerr, seerr.source);
 });
 
@@ -217,4 +235,26 @@ test("Sonarr/Radarr/Seerr links: http(s) only, blank is null", () => {
   assert.equal(linkFromEnv(undefined), null);
   assert.equal(linkFromEnv("javascript:alert(1)"), null);
   assert.equal(linkFromEnv("not a url"), null);
+});
+
+test("who checked an item: you, Hermes, or a push you confirmed; unknown and open items show nobody", () => {
+  assert.equal(itemDoneBy({ done: true, doneBy: "user", doneProgressId: null }), "user");
+  assert.equal(itemDoneBy({ done: true, doneBy: "hermes", doneProgressId: null }), "hermes");
+  assert.equal(itemDoneBy({ done: true, doneBy: "user", doneProgressId: "p1" }), "push");
+  assert.equal(itemDoneBy({ done: true, doneBy: null, doneProgressId: null }), null);
+  assert.equal(itemDoneBy({ done: false, doneBy: "user", doneProgressId: "p1" }), null);
+
+  const pushed = toChecklistItemDto({
+    ...item("x", 1000, true),
+    doneBy: "user",
+    doneProgressId: "p1",
+    doneProgress: { repoFullName: "example-user/study-sessions", commitSha: "abc1234def" },
+  });
+  assert.equal(pushed.doneBy, "push");
+  assert.deepEqual(pushed.donePush, {
+    repoFullName: "example-user/study-sessions",
+    commitSha: "abc1234def",
+    commitUrl: "https://github.com/example-user/study-sessions/commit/abc1234def",
+  });
+  assert.equal(toChecklistItemDto(item("y", 2000, true)).donePush, null);
 });

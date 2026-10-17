@@ -270,6 +270,7 @@ async function main(): Promise<void> {
     const forced = await call<HermesWriteResult<ChecklistItemDto>>("PUT", itemPath(0), { ...itemBodies[0], done: true, force: true });
     expectStatus(forced, 200);
     check(forced.body.data.done && forced.body.data.doneAt !== null, "item should be done");
+    check(forced.body.data.doneBy === "hermes", `doneBy should be hermes, got ${forced.body.data.doneBy}`);
   });
 
   // ---- Addressing by id:<uuid> (cards, items and sprints created on the page have no key) ----
@@ -353,10 +354,11 @@ async function main(): Promise<void> {
     check(reply.body.data.progress.length === 1 && reply.body.data.progress[0].id === noteA?.id, "item DTO should carry the pending note");
   });
 
-  await step("confirm looks_done (browser route) → item done, version +1", async () => {
+  await step("confirm looks_done (browser route) → item done by push, version +1", async () => {
     const reply = await call<ChecklistItemDto>("POST", `/api/items/${items[1].id}/progress/${noteA?.id}/confirm`, undefined, null);
     expectStatus(reply, 200);
     check(reply.body.done && reply.body.doneAt !== null, "item should be done");
+    check(reply.body.doneBy === "push" && reply.body.donePush?.commitSha === noteA?.commitSha, "doneBy should be push, linking the confirmed commit");
     check(reply.body.version === items[1].version + 1, `version should be ${items[1].version + 1}, got ${reply.body.version}`);
     check(reply.body.progress.length === 0, "no pending notes should remain");
     const again = await call<ChecklistItemDto>("POST", `/api/items/${items[1].id}/progress/${noteA?.id}/confirm`, undefined, null);

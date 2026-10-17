@@ -14,7 +14,7 @@ import { formatDuration, parseLength, wallMinutes } from "./schedule-bubble/form
 import { questionText, replyFor, shortSubject, type ReplyPhase } from "./schedule-bubble/replies";
 import { checkDraft, defaultLength, defaultStart, draftEcho, MESSAGES, type DayState } from "./schedule-bubble/validate";
 
-/** What the bubble books time for: a checklist item (Working on) or an open alert (Broken). */
+/** What the bubble books time for: a checklist item (Working on) or an open alert (Important). */
 export type ScheduleTarget =
   | { kind: "item"; cardId: string; cardTitle: string; item: ChecklistItemDto }
   | { kind: "alert"; alert: AlertDto };

@@ -3,10 +3,10 @@ import { prisma } from "@/lib/db/prisma";
 import { dashboardTimeZone, localDateString } from "@/lib/time/zone";
 import type { GmailSnapshot, HermesStateCard, HermesStateResponse, HermesStateSprint } from "@/types/dashboard-contracts";
 import { parseSnapshotPayload } from "./banner-payload";
-import { currentItem, dateOnly, toDbDate, toSprintDto } from "./dto";
+import { currentItem, dateOnly, itemDoneBy, toDbDate, toSprintDto } from "./dto";
 import { findCheckin, toHermesCheckin, weekOf } from "./checkin";
 import { dueOnDto } from "./due";
-import { toWaitingItemDto } from "./waiting";
+import { listAllNotes, toNoteDto } from "./notes";
 
 function toStateSprint(row: Sprint, today: string): HermesStateSprint {
   const dto = toSprintDto(row, today);
@@ -28,7 +28,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
   const timeZone = dashboardTimeZone();
   const today = localDateString(now, timeZone);
 
-  const [sprints, cards, alerts, message, watchlist, waiting, checkin, gmail] = await Promise.all([
+  const [sprints, cards, alerts, message, watchlist, notes, checkin, gmail] = await Promise.all([
     prisma.sprint.findMany({ where: { status: { in: ["active", "planned"] } }, orderBy: [{ startsOn: "asc" }, { createdAt: "asc" }] }),
     prisma.workCard.findMany({
       where: { status: { not: "archived" } },
@@ -46,7 +46,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     prisma.alert.findMany({ where: { resolvedAt: null }, orderBy: { openedAt: "asc" } }),
     prisma.dailyMessage.findUnique({ where: { date: toDbDate(today) } }),
     prisma.watchlistSymbol.findMany({ orderBy: [{ position: "asc" }, { symbol: "asc" }], select: { symbol: true } }),
-    prisma.waitingItem.findMany({ orderBy: [{ position: "asc" }, { title: "asc" }] }),
+    listAllNotes(),
     findCheckin(weekOf(today)),
     prisma.bannerSnapshot.findFirst({ where: { kind: "gmail" }, orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }], select: { payload: true, capturedAt: true } }),
   ]);
@@ -76,6 +76,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
         dueOn: dueOnDto(item.dueOn),
         issueNumber: item.issueNumber,
         done: item.done,
+        doneBy: itemDoneBy(item),
         isCurrent: item.isCurrent,
         position: item.position,
         version: item.version,
@@ -96,12 +97,14 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
       source: alert.source,
       title: alert.title,
       detail: alert.detail,
+      url: alert.url,
       severity: alert.severity,
       openedAt: alert.openedAt.toISOString(),
+      dismissedAt: alert.dismissedAt?.toISOString() ?? null,
     })),
     dailyMessage: message ? { date: dateOnly(message.date), text: message.text, author: message.author } : null,
     watchlist: watchlist.map((row) => row.symbol),
-    waiting: waiting.map((row) => ({ ...toWaitingItemDto(row), position: row.position })),
+    notes: notes.map(toNoteDto),
     checkin: checkin ? toHermesCheckin(checkin) : null,
     gmail: gmail ? storedGmail(gmail) : null,
   };

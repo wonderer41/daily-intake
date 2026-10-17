@@ -17,6 +17,8 @@ const item: ChecklistItemDto = {
   dueOn: null,
   done: false,
   doneAt: null,
+  doneBy: null,
+  donePush: null,
   isCurrent: false,
   position: 7000,
   createdBy: "user",
@@ -31,9 +33,11 @@ const alert: AlertDto = {
   source: "proxmox",
   title: "VM 100 backup missed",
   detail: "vzdump · Sun 01:00",
+  url: null,
   severity: "warning",
   openedAt: "2026-10-12T15:00:00Z",
   resolvedAt: null,
+  dismissedAt: null,
   scheduled: null,
 };
 

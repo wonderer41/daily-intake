@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { HttpError } from "@/lib/api/http";
-import { describeRef, parseDedupeKeyParam, parseKey, parseKeyParam, parseRef, refWhere } from "./keys";
+import { describeRef, parseDedupeKeyParam, parseKey, parseKeyParam, parseNoteRefParam, parseRef, refWhere } from "./keys";
 
 function valid(value: string, kind: Parameters<typeof parseKey>[1]): boolean {
   try {
@@ -69,4 +69,13 @@ test("cards, items and sprints can be addressed by id:<uuid>", () => {
 test("alerts are addressed by dedupeKey only", () => {
   assert.equal(parseDedupeKeyParam("container%3Ajellyfin", "dedupeKey"), "container:jellyfin");
   assert.throws(() => parseDedupeKeyParam("jellyfin", "dedupeKey"), HttpError);
+});
+
+test("notes: Hermes's own by key; any note by id:<uuid>, but only for DELETE", () => {
+  assert.deepEqual(parseNoteRefParam("github%3Aprs-to-review", "key", false), { kind: "key", key: "github:prs-to-review" });
+  const id = "id:5F0C2B4E-1A2B-4C3D-8E9F-0A1B2C3D4E5F";
+  assert.deepEqual(parseNoteRefParam(encodeURIComponent(id), "key", true), { kind: "id", id: "5f0c2b4e-1a2b-4c3d-8e9f-0a1b2c3d4e5f" });
+  assert.throws(() => parseNoteRefParam(encodeURIComponent(id), "key", false), HttpError);
+  assert.throws(() => parseNoteRefParam("id:not-a-uuid", "key", true), HttpError);
+  assert.throws(() => parseNoteRefParam("no-colon", "key", true), HttpError);
 });

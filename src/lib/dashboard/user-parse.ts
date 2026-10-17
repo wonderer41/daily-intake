@@ -225,3 +225,27 @@ export function parseDailyMessageBody(body: unknown): { date: string; text: stri
   const o = strictObject(body, ROOT, ["date", "text"]);
   return { date: localDate(o.date, "date"), text: requiredString(o.text, "text", 500) };
 }
+
+// ---------- Notes ----------
+
+export interface CreateNoteInput {
+  text: string;
+  url: string | null;
+}
+
+/** POST /api/notes: Gerardo's own note, text plus an optional link. */
+export function parseCreateNote(body: unknown): CreateNoteInput {
+  const o = strictObject(body, ROOT, ["text", "url"]);
+  return { text: requiredString(o.text, "text", 200), url: optionalHttpUrl(o.url, "url") ?? null };
+}
+
+export interface UpdateNoteInput {
+  text: string | undefined;
+  url: string | null | undefined;
+}
+
+/** PATCH /api/notes/:id: absent = keep, null or "" clears the link. */
+export function parseUpdateNote(body: unknown): UpdateNoteInput {
+  const o = strictObject(body, ROOT, ["text", "url"]);
+  return { text: optional(o.text, (v) => requiredString(v, "text", 200)), url: optionalHttpUrl(o.url, "url") };
+}

@@ -5,11 +5,13 @@ import {
   parseCardQuery,
   parseCreateCard,
   parseCreateItem,
+  parseCreateNote,
   parseCreateSprint,
   parseDailyMessageBody,
   parseReorder,
   parseUpdateCard,
   parseUpdateItem,
+  parseUpdateNote,
   uuid,
 } from "./user-parse";
 
@@ -73,4 +75,15 @@ test("daily message needs a date and non-empty text", () => {
   assert.deepEqual(parseDailyMessageBody({ date: "2026-10-14", text: "  Go slow.  " }), { date: "2026-10-14", text: "Go slow." });
   assert.equal(field(() => parseDailyMessageBody({ date: "10/14", text: "x" })), "date");
   assert.equal(field(() => parseDailyMessageBody({ date: "2026-10-14", text: " " })), "text");
+});
+
+test("notes: text up to 200 characters, an optional http(s) link; an edit keeps what it doesn't send", () => {
+  assert.deepEqual(parseCreateNote({ text: " Call the ISP " }), { text: "Call the ISP", url: null });
+  assert.deepEqual(parseCreateNote({ text: "Call the ISP", url: "https://isp.example" }), { text: "Call the ISP", url: "https://isp.example" });
+  assert.equal(field(() => parseCreateNote({ text: "" })), "text");
+  assert.equal(field(() => parseCreateNote({ text: "x".repeat(201) })), "text");
+  assert.equal(field(() => parseCreateNote({ text: "x", url: "ftp://isp.example" })), "url");
+  assert.equal(field(() => parseCreateNote({ text: "x", author: "hermes" })), "author");
+  assert.deepEqual(parseUpdateNote({ url: null }), { text: undefined, url: null });
+  assert.deepEqual(parseUpdateNote({ text: "Call the ISP today" }), { text: "Call the ISP today", url: undefined });
 });

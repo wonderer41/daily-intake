@@ -132,7 +132,7 @@ export function parseSeerrMediaDetails(value: unknown, mediaType: SeerrMediaType
   };
 }
 
-/** Request + its media details → what the Waiting panel shows. Details may be null when Seerr couldn't load them. */
+/** Request + its media details → what the Seerr bubble in Notes shows. Details may be null when Seerr couldn't load them. */
 export function toSeerrRequestDto(request: SeerrRequest, details: SeerrMediaDetails | null): SeerrRequestDto {
   return {
     id: request.id,

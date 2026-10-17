@@ -43,6 +43,8 @@ export interface ItemProgressDto {
   pushedAt: string;
 }
 
+export type ItemDoneBy = "user" | "hermes" | "push";
+
 export interface ChecklistItemDto {
   id: string;
   cardId: string;
@@ -54,6 +56,13 @@ export interface ChecklistItemDto {
   dueOn: string | null;
   done: boolean;
   doneAt: string | null;
+  /**
+   * Who checked it: "user" on the page, "hermes" through its API, "push" when Gerardo confirmed a
+   * Hermes push update (see donePush). Null while open, and on items checked before this was recorded.
+   */
+  doneBy: ItemDoneBy | null;
+  /** The confirmed push, when doneBy is "push". */
+  donePush: { repoFullName: string; commitSha: string; commitUrl: string } | null;
   isCurrent: boolean;
   position: number;
   createdBy: Actor;
@@ -243,6 +252,8 @@ export interface BannerDto {
   dailyMessage: { date: string; text: string; author: Actor } | null;
   gmail: { capturedAt: string; data: GmailSnapshot } | null;
   orphans: { capturedAt: string; data: OrphansSnapshot } | null;
+  /** Sonarr ↗ / Radarr ↗ on the orphans panel (SONARR_URL / RADARR_URL, http(s) only); null when not set. */
+  orphanLinks: { sonarrUrl: string | null; radarrUrl: string | null };
   scan: { capturedAt: string; data: ScanSnapshot } | null;
   stocks: { capturedAt: string; data: StocksSnapshot } | null;
   /** This week's check-in (Hermes writes it mid-week); null when there is none. Shown first. */
@@ -290,13 +301,18 @@ export interface UpdateCheckinItemRequest {
 export interface AlertDto {
   id: string;
   dedupeKey: string;
+  /** Important groups its entries by source. */
   source: string;
   title: string;
   detail: string | null;
+  /** Where to act on it (http or https); null when Hermes sent none. */
+  url: string | null;
   severity: AlertSeverity;
   openedAt: string;
-  /** Null while open; the Broken panel only lists open alerts. */
+  /** Null while open; Important only lists open alerts. */
   resolvedAt: string | null;
+  /** Set once Gerardo dismissed it; Important hides it until it reopens or turns critical. */
+  dismissedAt: string | null;
   scheduled: { calendarEventId: string; startsAt: string; endsAt: string } | null;
 }
 
@@ -321,24 +337,40 @@ export interface SeerrDecisionResponse {
   library: "temp" | "permanent" | "anime";
 }
 
-export interface WaitingDto {
-  gmailNeedsReply: number;
+export interface NotesDto {
   /** Live count from Seerr; null when Seerr is unavailable or not set up (see TodayResponse.sources.seerr). */
   seerrPending: number | null;
-  orphans: { sonarr: number; radarr: number; sonarrUrl: string | null; radarrUrl: string | null };
   /** Browser link for "Open Seerr ↗" (SEERR_PUBLIC_URL, http(s) only); null when not set. */
   seerrUrl: string | null;
-  /** Custom items Hermes pushed (PUT /api/hermes/waiting/:key), count > 0 only, in position order. */
-  custom: WaitingItemDto[];
+  /** Newest first. Hermes notes with count 0 are left out. */
+  items: NoteDto[];
 }
 
-/** A custom "Waiting on you" item: "PRs to review · 3", with an optional line of detail and link. */
-export interface WaitingItemDto {
-  key: string;
-  title: string;
-  count: number;
+/** A line in Notes: Gerardo's own (author "user", no key) or Hermes's (keyed, e.g. "PRs to review · 3"). */
+export interface NoteDto {
+  id: string;
+  author: "user" | "hermes";
+  /** Hermes notes only, "<source>:<thing>"; null on Gerardo's. */
+  key: string | null;
+  text: string;
   detail: string | null;
   url: string | null;
+  /** Shown on the right; null shows none. */
+  count: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** POST /api/notes — a note of Gerardo's. */
+export interface CreateNoteRequest {
+  text: string;
+  url?: string | null;
+}
+
+/** PATCH /api/notes/:id — only Gerardo's own notes. Absent = keep, null = clear the link. */
+export interface UpdateNoteRequest {
+  text?: string;
+  url?: string | null;
 }
 
 // ---------- Whole page ----------
@@ -359,7 +391,8 @@ export interface TodayResponse {
   banner: BannerDto;
   timeline: TimelineResponse;
   workingOn: { activeSprint: SprintDto | null; cards: WorkCardDto[] };
-  warnings: { alerts: AlertDto[]; waiting: WaitingDto };
+  /** Important (open alerts not dismissed, oldest first; push updates come from workingOn) and Notes. */
+  warnings: { alerts: AlertDto[]; notes: NotesDto };
   /** `seerr` is null when Seerr isn't set up on the server (it is optional). */
   sources: { calendar: SourceStateDto; seerr: SourceStateDto | null };
 }
@@ -376,7 +409,7 @@ export type LiveEvent =
   | { type: "alert.changed"; alertId: string }
   | { type: "schedule.updated"; scheduleId: string }
   | { type: "seerr.changed" }
-  | { type: "waiting.changed" }
+  | { type: "notes.changed" }
   | { type: "day.rollover"; date: string };
 
 // ---------- Hermes write API (/api/hermes/*, bearer HERMES_DASHBOARD_TOKEN) ----------
@@ -429,9 +462,19 @@ export interface HermesUpsertAlert {
   source: string;
   title: string;
   detail?: string | null;
+  /** Where Gerardo acts on it (http or https). */
+  url?: string | null;
   severity?: AlertSeverity;
   /** Shallow-merged into the stored meta; a null value removes that key. */
   meta?: Record<string, unknown>;
+}
+
+/** PUT /api/hermes/notes/:key — a Hermes note. Absent = keep, null = clear. */
+export interface HermesUpsertNote {
+  text: string;
+  detail?: string | null;
+  url?: string | null;
+  count?: number | null;
 }
 
 export interface HermesWriteResult<T> {
@@ -517,6 +560,8 @@ export interface HermesStateItem {
   issueNumber: number | null;
   dueOn: string | null;
   done: boolean;
+  /** Who checked it ("push" = Gerardo confirmed one of your push updates); null while open or unknown. */
+  doneBy: ItemDoneBy | null;
   isCurrent: boolean;
   position: number;
   version: number;
@@ -547,8 +592,11 @@ export interface HermesStateAlert {
   source: string;
   title: string;
   detail: string | null;
+  url: string | null;
   severity: AlertSeverity;
   openedAt: string;
+  /** Gerardo dismissed it; re-sending the same problem keeps it hidden. */
+  dismissedAt: string | null;
 }
 
 export interface HermesStateResponse {
@@ -565,8 +613,8 @@ export interface HermesStateResponse {
   dailyMessage: HermesDailyMessage | null;
   /** Stocks watchlist in banner order (D9). */
   watchlist: string[];
-  /** Custom "Waiting on you" items, zero counts included, in position order. */
-  waiting: (WaitingItemDto & { position: number })[];
+  /** Every note, Gerardo's and Hermes's, zero counts included, newest first. */
+  notes: NoteDto[];
   /** The newest Gmail snapshot, so the Gmail job can carry Needs reply and Packages forward. */
   gmail: { capturedAt: string; data: GmailSnapshot } | null;
   /** This week's check-in, if written. `done` already reflects linked checklist items. */

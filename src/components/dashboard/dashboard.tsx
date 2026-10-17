@@ -227,7 +227,7 @@ export function Dashboard({ initial, pinned }: DashboardProps) {
             <WorkingOn activeSprint={today.workingOn.activeSprint} cards={today.workingOn.cards} />
           </div>
           <div className="flex min-w-0 flex-[1_1_300px] flex-col">
-            <WarningsRail alerts={today.warnings.alerts} waiting={today.warnings.waiting} sources={today.sources} />
+            <WarningsRail alerts={today.warnings.alerts} cards={today.workingOn.cards} notes={today.warnings.notes} sources={today.sources} />
           </div>
         </div>
       </main>

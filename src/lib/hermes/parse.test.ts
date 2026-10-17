@@ -8,6 +8,7 @@ import {
   parseUpsertAlert,
   parseUpsertCard,
   parseUpsertItem,
+  parseUpsertNote,
   parseUpsertSprint,
   parseWatchlist,
 } from "./parse";
@@ -101,4 +102,26 @@ test("watchlist: 1–50 tickers, uppercased, duplicates dropped", () => {
   assert.equal(field(() => parseWatchlist({ symbols: ["NVDA", "1BAD"] })), "symbols[1]");
   assert.equal(field(() => parseWatchlist({ symbols: ["NVDA", 7] })), "symbols[1]");
   assert.equal(field(() => parseWatchlist({ symbols: ["NVDA"], replace: true })), "replace");
+});
+
+test("alerts take an optional http(s) link", () => {
+  assert.equal(parseUpsertAlert({ source: "seerr", title: "Dune waiting 5 days" }).url, undefined);
+  assert.equal(parseUpsertAlert({ source: "seerr", title: "Dune", url: "https://requests.example/request/12" }).url, "https://requests.example/request/12");
+  assert.equal(parseUpsertAlert({ source: "seerr", title: "Dune", url: null }).url, null);
+  assert.equal(field(() => parseUpsertAlert({ source: "seerr", title: "Dune", url: "javascript:alert(1)" })), "url");
+});
+
+test("Hermes notes: text required, count optional (null clears), unknown fields rejected", () => {
+  assert.deepEqual(parseUpsertNote({ text: " PRs to review ", count: 3, url: "https://github.com/pulls" }), {
+    text: "PRs to review",
+    detail: undefined,
+    url: "https://github.com/pulls",
+    count: 3,
+  });
+  assert.equal(parseUpsertNote({ text: "Router reboot at 02:00" }).count, undefined);
+  assert.equal(parseUpsertNote({ text: "x", count: null }).count, null);
+  assert.equal(field(() => parseUpsertNote({ text: "" })), "text");
+  assert.equal(field(() => parseUpsertNote({ text: "x".repeat(201) })), "text");
+  assert.equal(field(() => parseUpsertNote({ text: "x", count: -1 })), "count");
+  assert.equal(field(() => parseUpsertNote({ title: "PRs", count: 3 })), "title");
 });

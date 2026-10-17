@@ -1,6 +1,6 @@
 import type { Alert, ItemProgress, Prisma, Sprint } from "@/generated/prisma/client";
 import { dashboardTimeZone } from "@/lib/time/zone";
-import type { AlertDto, ChecklistItemDto, ItemProgressDto, SprintDto, WorkCardDto } from "@/types/dashboard-contracts";
+import type { AlertDto, ChecklistItemDto, ItemDoneBy, ItemProgressDto, SprintDto, WorkCardDto } from "@/types/dashboard-contracts";
 import { formatMetaLine } from "./meta-line";
 
 // Prisma row → DTO mappers shared by /api/hermes/* and, later, /api/today and the browser routes.
@@ -54,8 +54,11 @@ const pendingProgress = {
   orderBy: [{ pushedAt: "desc" }, { createdAt: "desc" }],
 } satisfies Prisma.ChecklistItem$progressArgs;
 
+/** The push update Gerardo confirmed to check the item, for the GitHub mark next to it. */
+const doneProgress = { select: { repoFullName: true, commitSha: true } } satisfies Prisma.ChecklistItem$doneProgressArgs;
+
 export function itemInclude(now: Date) {
-  return { calendarEvents: upcomingBlocks(now), progress: pendingProgress } satisfies Prisma.ChecklistItemInclude;
+  return { calendarEvents: upcomingBlocks(now), progress: pendingProgress, doneProgress } satisfies Prisma.ChecklistItemInclude;
 }
 
 export function cardInclude(now: Date) {
@@ -79,6 +82,13 @@ function scheduled(events: { id: string; startsAt: Date; endsAt: Date }[]): Chec
 
 export function commitUrl(repoFullName: string, sha: string): string {
   return `https://github.com/${repoFullName}/commit/${sha}`;
+}
+
+/** Who checked an item, as the page and Hermes see it. */
+export function itemDoneBy(row: Pick<ItemRow, "done" | "doneBy" | "doneProgressId">): ItemDoneBy | null {
+  if (!row.done) return null;
+  if (row.doneProgressId !== null) return "push";
+  return row.doneBy === "user" || row.doneBy === "hermes" ? row.doneBy : null;
 }
 
 export function toItemProgressDto(row: ItemProgress): ItemProgressDto {
@@ -105,6 +115,11 @@ export function toChecklistItemDto(row: ItemRow): ChecklistItemDto {
     dueOn: row.dueOn === null ? null : dateOnly(row.dueOn),
     done: row.done,
     doneAt: row.doneAt?.toISOString() ?? null,
+    doneBy: itemDoneBy(row),
+    donePush:
+      row.done && row.doneProgress
+        ? { repoFullName: row.doneProgress.repoFullName, commitSha: row.doneProgress.commitSha, commitUrl: commitUrl(row.doneProgress.repoFullName, row.doneProgress.commitSha) }
+        : null,
     isCurrent: row.isCurrent,
     position: row.position,
     createdBy: row.createdBy,
@@ -161,9 +176,11 @@ export function toAlertDto(row: Alert & { calendarEvents: AlertRow["calendarEven
     source: row.source,
     title: row.title,
     detail: row.detail,
+    url: row.url,
     severity: row.severity,
     openedAt: row.openedAt.toISOString(),
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
+    dismissedAt: row.dismissedAt?.toISOString() ?? null,
     scheduled: scheduled(row.calendarEvents),
   };
 }

@@ -91,6 +91,21 @@ export function parseDedupeKeyParam(raw: string, field: string): string {
   return parseKey(decodeSegment(raw, field), "alert", field);
 }
 
+/**
+ * Notes: Hermes's own by key (alert format), or any note by "id:<uuid>" (Gerardo's notes have no key).
+ * `allowId` false (PUT) rejects the id form, since an id never creates a note.
+ */
+export function parseNoteRefParam(raw: string, field: string, allowId: boolean): RowRef {
+  const value = decodeSegment(raw, field);
+  if (value.startsWith(ID_PREFIX)) {
+    if (!allowId) invalid(field, `must be a key like github:prs-to-review; ${ID_PREFIX}<uuid> only works for DELETE`);
+    const id = value.slice(ID_PREFIX.length);
+    if (!isUuid(id)) invalid(field, `must be ${ID_PREFIX}<uuid>, using an id from GET /api/hermes/state`);
+    return { kind: "id", id: id.toLowerCase() };
+  }
+  return { kind: "key", key: parseKey(value, "alert", field) };
+}
+
 /** Prisma unique filter for a ref; WorkCard, ChecklistItem and Sprint all have unique id and externalKey. */
 export function refWhere(ref: RowRef): { id: string } | { externalKey: string } {
   return ref.kind === "id" ? { id: ref.id } : { externalKey: ref.key };

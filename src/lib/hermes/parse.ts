@@ -154,16 +154,18 @@ export interface AlertInput {
   source: string;
   title: string;
   detail: string | null | undefined;
+  url: string | null | undefined;
   severity: AlertSeverity | undefined;
   meta: Record<string, unknown> | undefined;
 }
 
 export function parseUpsertAlert(body: unknown): AlertInput {
-  const o = strictObject(body, ROOT, ["source", "title", "detail", "severity", "meta"]);
+  const o = strictObject(body, ROOT, ["source", "title", "detail", "url", "severity", "meta"]);
   return {
     source: requiredString(o.source, "source", 100),
     title: requiredString(o.title, "title", 200),
     detail: optionalString(o.detail, "detail", 500),
+    url: optionalHttpUrl(o.url, "url"),
     severity: optional(o.severity, (v) => enumValue(v, "severity", ALERT_SEVERITIES)),
     meta: meta(o.meta),
   };
@@ -238,24 +240,22 @@ export async function readOptionalJsonBody(request: Request): Promise<unknown> {
   }
 }
 
-export interface WaitingItemInput {
-  title: string;
-  count: number;
+export interface NoteInput {
+  text: string;
   /** Absent = keep, null = clear. */
   detail?: string | null;
   url?: string | null;
-  position?: number;
+  count?: number | null;
 }
 
-/** PUT /api/hermes/waiting/:key — a custom "Waiting on you" item. Count 0 keeps it but hides it. */
-export function parseUpsertWaitingItem(body: unknown): WaitingItemInput {
-  const o = strictObject(body, ROOT, ["title", "count", "detail", "url", "position"]);
+/** PUT /api/hermes/notes/:key — a Hermes note. Count 0 keeps it but hides it. */
+export function parseUpsertNote(body: unknown): NoteInput {
+  const o = strictObject(body, ROOT, ["text", "detail", "url", "count"]);
   return {
-    title: requiredString(o.title, "title", 80),
-    count: integer(o.count, "count", { min: 0, max: 1_000_000 }),
+    text: requiredString(o.text, "text", 200),
     detail: optionalString(o.detail, "detail", 200),
     url: optionalHttpUrl(o.url, "url"),
-    position: optional(o.position, (v) => integer(v, "position", { min: 0, max: 1000 })),
+    count: o.count === null ? null : optional(o.count, (v) => integer(v, "count", { min: 0, max: 1_000_000 })),
   };
 }
 

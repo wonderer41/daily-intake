@@ -128,10 +128,10 @@ export async function resolveItemProgress(
     });
     if (count === 0) return { cardId, changed: false };
     if (action === "confirm" && progress.kind === "looks_done") {
-      // Checking an item that is already checked changes nothing (doneAt stays the first time).
+      // Checking an item that is already checked changes nothing (doneAt and who did it stay).
       await tx.checklistItem.updateMany({
         where: { id: itemId, done: false },
-        data: { done: true, doneAt: now, version: { increment: 1 } },
+        data: { done: true, doneAt: now, doneBy: "user", doneProgressId: progressId, version: { increment: 1 } },
       });
     }
     return { cardId, changed: true };

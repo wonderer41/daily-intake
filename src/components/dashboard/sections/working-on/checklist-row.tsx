@@ -5,6 +5,7 @@ import { Chip } from "@/components/ui/chip";
 import { ChatIcon } from "@/components/ui/icons";
 import type { ChecklistItemDto, ItemProgressDto } from "@/types/dashboard-contracts";
 import { ScheduleBubble } from "../../schedule-bubble";
+import { DoneBy } from "./done-by";
 import { DueControl } from "./due-control";
 import { dueLabel, issueRef, itemName, timeTag } from "./labels";
 import { PushNote } from "./push-note";
@@ -35,8 +36,8 @@ export interface ChecklistRowProps {
 }
 
 /**
- * One checklist row: checkbox (whole row is the label), number, title, due and time tags, Due, Schedule,
- * push notes, bubble. The due tag shows the item's own deadline; the card's shows on the card.
+ * One checklist row: checkbox (whole row is the label), number, title, who checked it, due and time
+ * tags, Due, Schedule, push notes, bubble. The due tag shows the item's own deadline; the card's shows on the card.
  */
 export function ChecklistRow(props: ChecklistRowProps) {
   const { item, cardId, cardTitle, numbered, canSchedule, bubbleOpen, now, timeZone } = props;
@@ -58,6 +59,7 @@ export function ChecklistRow(props: ChecklistRowProps) {
           {numbered ? <span className="wo-num w-9 shrink-0 font-mono text-[13px]">{issueRef(item)}</span> : null}
           <span className="min-w-0 grow text-[16px] [overflow-wrap:anywhere]">{item.title}</span>
         </CheckboxRow>
+        <DoneBy item={item} />
         {due ? <Chip tone={due.overdue ? "overdue" : "neutral"}>{due.text}</Chip> : null}
         {item.scheduled ? (
           <Chip tone="in-progress">

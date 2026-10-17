@@ -14,6 +14,7 @@ const VALID: LiveEvent[] = [
   { type: "alert.changed", alertId: "a1" },
   { type: "schedule.updated", scheduleId: "r1" },
   { type: "seerr.changed" },
+  { type: "notes.changed" },
   { type: "day.rollover", date: "2026-10-15" },
 ];
 

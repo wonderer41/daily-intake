@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/db/prisma";
-import { runGithubCardMetaJob } from "@/lib/integrations/github/card-meta";
 import { syncCalendarTimeline } from "@/lib/integrations/google-calendar/timeline-sync";
 import { isSeerrConfigured } from "@/lib/integrations/seerr/config";
 import { checkSeerrPending } from "@/lib/integrations/seerr/pending";
 import { syncStockHistory, syncStockQuotes } from "@/lib/integrations/stocks/sync";
+import { runPushReviewQueue } from "@/lib/push-review/runner";
 import { runScheduleQueue } from "@/lib/schedule/runner";
 import { publishLiveEvent, sendLiveEvent } from "@/lib/live/publish";
 import { dashboardTimeZone, localDateString } from "@/lib/time/zone";
 import { type CalendarJobResult, formatCalendarJobResult, syncCalendarAndPublish } from "./calendar-job";
+import { runGithubSyncJob } from "./github-job";
 import { formatRetentionResult, runRetention } from "./retention";
 import type { WorkerJob } from "./scheduler";
 
@@ -61,7 +62,7 @@ export const workerJobs: WorkerJob[] = [
     run: async ({ now, timeZone }) => formatRetentionResult(await runRetention(prisma, now, timeZone)),
   },
   {
-    // Waiting panel count. The first poll after a restart publishes too. Seerr is optional: without
+    // Notes panel Seerr count. The first poll after a restart publishes too. Seerr is optional: without
     // SEERR_URL / SEERR_API_KEY the job does nothing and logs nothing.
     name: "seerr-poll",
     trigger: { everyMs: 2 * MINUTE },
@@ -92,10 +93,19 @@ export const workerJobs: WorkerJob[] = [
     },
   },
   {
-    // GitHub → the card meta line (D7: read-only). Publishes card.upserted for cards whose data changed.
+    // GitHub → the card meta line (D7: read-only; publishes card.upserted for cards whose data changed),
+    // then the push watch: the newest commit on each card repo's default branch and open pull requests.
     name: "github-sync",
     trigger: { everyMs: 5 * MINUTE },
-    run: async ({ now }) => runGithubCardMetaJob(now),
+    run: async ({ now }) => runGithubSyncJob(now),
+  },
+  {
+    // Push review: asks Hermes which open items the new commits move forward and writes its push
+    // updates. Each review runs in the background (up to 10 min, 2 at once), so a tick only picks up new ones.
+    name: "push-review",
+    trigger: { everyMs: 5_000 },
+    quiet: true,
+    run: async () => runPushReviewQueue(),
   },
   {
     // "Ask Hermes" in the scheduling bubble: hands new requests to Hermes and settles them from its answer.

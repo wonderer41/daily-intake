@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { SeerrRequestDto, TodayResponse, WaitingDto } from "@/types/dashboard-contracts";
+import type { AlertDto, ChecklistItemDto, ItemProgressDto, NotesDto, NoteDto, SeerrRequestDto, TodayResponse, WorkCardDto } from "@/types/dashboard-contracts";
 import { ApiRequestError } from "../../api";
 import {
   blockTag,
   decisionFailure,
-  gmailLine,
+  importantGroups,
   initialSeerrList,
   mergeRequestRows,
   moreInSeerr,
+  noteLinkError,
   outcomeText,
   requestErrorText,
   requestMeta,
@@ -17,7 +18,10 @@ import {
   seasonsLabel,
   seerrListReducer,
   seerrSummary,
-  waitingVisibility,
+  showSeerr,
+  withNoteEdit,
+  withoutAlert,
+  withoutNote,
   withSeerrPendingAtMost,
 } from "./format";
 
@@ -36,20 +40,30 @@ function request(id: number, overrides: Partial<SeerrRequestDto> = {}): SeerrReq
   };
 }
 
-function waiting(overrides: Partial<WaitingDto> = {}): WaitingDto {
+function notes(overrides: Partial<NotesDto> = {}): NotesDto {
+  return { seerrPending: 0, seerrUrl: null, items: [], ...overrides };
+}
+
+function note(id: string, overrides: Partial<NoteDto> = {}): NoteDto {
   return {
-    gmailNeedsReply: 0,
-    seerrPending: 0,
-    orphans: { sonarr: 0, radarr: 0, sonarrUrl: null, radarrUrl: null },
-    seerrUrl: null,
-    custom: [],
+    id,
+    author: "user",
+    key: null,
+    text: `Note ${id}`,
+    detail: null,
+    url: null,
+    count: null,
+    createdAt: "2026-10-16T15:00:00.000Z",
+    updatedAt: "2026-10-16T15:00:00.000Z",
     ...overrides,
   };
 }
 
+function withWarnings(warnings: Partial<TodayResponse["warnings"]>): TodayResponse {
+  return { warnings: { alerts: [], notes: notes(), ...warnings } } as unknown as TodayResponse;
+}
+
 test("counts read naturally", () => {
-  assert.equal(gmailLine(1), "1 starred thread needs a reply");
-  assert.equal(gmailLine(3), "3 starred threads need a reply");
   assert.equal(seerrSummary(1), "1 guest request to approve");
   assert.equal(seerrSummary(2), "2 guest requests to approve");
   assert.equal(seerrSummary(0), "No requests waiting");
@@ -96,16 +110,16 @@ test("decision failures: 409/404 settle the row, everything else keeps it active
 });
 
 test("optimistic count only ever lowers to the target, so re-applying it is harmless", () => {
-  const today = { warnings: { alerts: [], waiting: waiting({ seerrPending: 3 }) } } as unknown as TodayResponse;
+  const today = withWarnings({ notes: notes({ seerrPending: 3 }) });
   const once = withSeerrPendingAtMost(today, 2);
-  assert.equal(once.warnings.waiting.seerrPending, 2);
+  assert.equal(once.warnings.notes.seerrPending, 2);
   assert.equal(withSeerrPendingAtMost(once, 2), once);
   // The server already counted the approval (live refresh landed first): no double drop.
-  const refreshed = { warnings: { alerts: [], waiting: waiting({ seerrPending: 2 }) } } as unknown as TodayResponse;
-  assert.equal(withSeerrPendingAtMost(refreshed, 2).warnings.waiting.seerrPending, 2);
+  const refreshed = withWarnings({ notes: notes({ seerrPending: 2 }) });
+  assert.equal(withSeerrPendingAtMost(refreshed, 2).warnings.notes.seerrPending, 2);
   // Seerr down: leave the "?" alone.
-  const down = { warnings: { alerts: [], waiting: waiting({ seerrPending: null }) } } as unknown as TodayResponse;
-  assert.equal(withSeerrPendingAtMost(down, 0).warnings.waiting.seerrPending, null);
+  const down = withWarnings({ notes: notes({ seerrPending: null }) });
+  assert.equal(withSeerrPendingAtMost(down, 0).warnings.notes.seerrPending, null);
 });
 
 test("reloading keeps handled rows in place, refreshes pending ones, puts new ones on top", () => {
@@ -148,23 +162,133 @@ test("'more in Seerr' only when the list hit its cap", () => {
   assert.equal(moreInSeerr(null, 20), null);
 });
 
-test("waiting items hide at zero; Seerr stays while down or open", () => {
-  assert.deepEqual(waitingVisibility(waiting(), true, false), { gmail: false, seerr: false, orphans: false, nothing: true });
-  assert.deepEqual(waitingVisibility(waiting({ gmailNeedsReply: 1 }), true, false), { gmail: true, seerr: false, orphans: false, nothing: false });
-  assert.equal(waitingVisibility(waiting({ seerrPending: null }), false, false).seerr, true);
-  assert.equal(waitingVisibility(waiting({ seerrPending: 0 }), true, true).seerr, true);
-  assert.equal(waitingVisibility(waiting({ orphans: { sonarr: 0, radarr: 2, sonarrUrl: null, radarrUrl: null } }), true, false).orphans, true);
-});
-
-test("a custom item from Hermes means there is something waiting", () => {
-  const custom = [{ key: "github:prs", title: "PRs to review", count: 3, detail: null, url: null }];
-  assert.equal(waitingVisibility(waiting({ custom }), true, false).nothing, false);
-  assert.equal(waitingVisibility(waiting({ custom: [{ ...custom[0], count: 0 }] }), true, false).nothing, true);
+test("Seerr shows while it has requests, is down, or its bubble is open", () => {
+  assert.equal(showSeerr(notes(), true, false), false);
+  assert.equal(showSeerr(notes({ seerrPending: 2 }), true, false), true);
+  assert.equal(showSeerr(notes({ seerrPending: null }), false, false), true);
+  assert.equal(showSeerr(notes({ seerrPending: 0 }), true, true), true);
 });
 
 test("Seerr never shows when it isn't set up on the server", () => {
-  assert.deepEqual(waitingVisibility(waiting({ seerrPending: null }), null, false), { gmail: false, seerr: false, orphans: false, nothing: true });
-  assert.equal(waitingVisibility(waiting({ seerrPending: null }), null, true).seerr, false);
+  assert.equal(showSeerr(notes({ seerrPending: null }), null, false), false);
+  assert.equal(showSeerr(notes({ seerrPending: null }), null, true), false);
+});
+
+test("note edits and deletes are pure and repeatable", () => {
+  const today = withWarnings({ notes: notes({ items: [note("a"), note("b")] }) });
+  const edited = withNoteEdit(today, "a", { text: "Call the ISP", url: "https://isp.example" });
+  assert.deepEqual(
+    edited.warnings.notes.items.map((item) => [item.id, item.text, item.url]),
+    [
+      ["a", "Call the ISP", "https://isp.example"],
+      ["b", "Note b", null],
+    ],
+  );
+  assert.deepEqual(withNoteEdit(edited, "a", { text: "Call the ISP", url: "https://isp.example" }), edited);
+  const removed = withoutNote(edited, "a");
+  assert.deepEqual(removed.warnings.notes.items.map((item) => item.id), ["b"]);
+  assert.deepEqual(withoutNote(removed, "a"), removed);
+});
+
+test("a note's link is optional but must be http(s)", () => {
+  assert.equal(noteLinkError(""), null);
+  assert.equal(noteLinkError("   "), null);
+  assert.equal(noteLinkError("https://example.com/x"), null);
+  assert.equal(noteLinkError("javascript:alert(1)"), "The link must start with http:// or https://");
+  assert.equal(noteLinkError("not a link"), "That doesn't look like a link (https://…)");
+});
+
+// ---------- Important ----------
+
+function alert(id: string, overrides: Partial<AlertDto> = {}): AlertDto {
+  return {
+    id,
+    dedupeKey: `proxmox:${id}`,
+    source: "proxmox",
+    title: `Alert ${id}`,
+    detail: null,
+    url: null,
+    severity: "warning",
+    openedAt: "2026-10-16T10:00:00.000Z",
+    resolvedAt: null,
+    dismissedAt: null,
+    scheduled: null,
+    ...overrides,
+  };
+}
+
+function pushUpdate(id: string, pushedAt: string, overrides: Partial<ItemProgressDto> = {}): ItemProgressDto {
+  return {
+    id,
+    kind: "looks_done",
+    status: "pending",
+    note: "Added the streak model",
+    repoFullName: "example-user/study-sessions",
+    commitSha: "abc1234def5678abc1234def5678abc1234def56",
+    commitUrl: "https://github.com/example-user/study-sessions/commit/abc1234",
+    pushedAt,
+    ...overrides,
+  };
+}
+
+function card(id: string, items: Partial<ChecklistItemDto>[]): WorkCardDto {
+  return {
+    id,
+    title: `Card ${id}`,
+    repoFullName: "example-user/study-sessions",
+    items: items.map((item, index) => ({ id: `${id}-item-${index}`, title: `Item ${index}`, issueNumber: null, done: false, progress: [], ...item })),
+  } as unknown as WorkCardDto;
+}
+
+function shape(groups: ReturnType<typeof importantGroups>): [string, string[]][] {
+  return groups.map((group) => [group.label, group.entries.map((entry) => (entry.kind === "alert" ? entry.alert.id : entry.update.id))]);
+}
+
+test("Important: critical first, then groups by source ordered by their newest entry, newest first inside", () => {
+  const alerts = [
+    alert("old-proxmox", { openedAt: "2026-10-14T08:00:00.000Z" }),
+    alert("seerr-dune", { source: "seerr", openedAt: "2026-10-16T09:00:00.000Z" }),
+    alert("new-proxmox", { openedAt: "2026-10-15T08:00:00.000Z" }),
+    alert("disk", { severity: "critical", openedAt: "2026-10-13T08:00:00.000Z" }),
+    alert("ups", { severity: "critical", source: "seerr", openedAt: "2026-10-15T12:00:00.000Z" }),
+  ];
+  const cards = [card("c", [{ progress: [pushUpdate("p1", "2026-10-15T20:00:00.000Z")] }, { progress: [pushUpdate("p2", "2026-10-16T11:00:00.000Z")] }])];
+  assert.deepEqual(shape(importantGroups(alerts, cards)), [
+    ["Critical", ["ups", "disk"]],
+    ["GitHub", ["p2", "p1"]],
+    ["seerr", ["seerr-dune"]],
+    ["proxmox", ["new-proxmox", "old-proxmox"]],
+  ]);
+});
+
+test("Important: a GitHub alert (failed push review) joins the push updates' group", () => {
+  const alerts = [alert("review-failed", { source: "github", openedAt: "2026-10-16T12:00:00.000Z" }), alert("proxmox", { openedAt: "2026-10-16T13:00:00.000Z" })];
+  const cards = [card("c", [{ progress: [pushUpdate("p1", "2026-10-16T11:00:00.000Z")] }])];
+  assert.deepEqual(shape(importantGroups(alerts, cards)), [
+    ["proxmox", ["proxmox"]],
+    ["GitHub", ["review-failed", "p1"]],
+  ]);
+});
+
+test("Important leaves out dismissed or resolved alerts, done items and settled push updates", () => {
+  const alerts = [
+    alert("dismissed", { dismissedAt: "2026-10-16T10:30:00.000Z" }),
+    alert("resolved", { resolvedAt: "2026-10-16T10:30:00.000Z" }),
+  ];
+  const cards = [
+    card("c", [
+      { done: true, progress: [pushUpdate("on-done-item", "2026-10-16T11:00:00.000Z")] },
+      { progress: [pushUpdate("dismissed-update", "2026-10-16T11:00:00.000Z", { status: "dismissed" })] },
+    ]),
+  ];
+  assert.deepEqual(importantGroups(alerts, cards), []);
+});
+
+test("dismissing an alert drops it from the page, and again changes nothing", () => {
+  const today = withWarnings({ alerts: [alert("a"), alert("b")] });
+  const once = withoutAlert(today, "a");
+  assert.deepEqual(once.warnings.alerts.map((entry) => entry.id), ["b"]);
+  assert.deepEqual(withoutAlert(once, "a"), once);
 });
 
 test("booked block tag: clock range today, with the day otherwise", () => {

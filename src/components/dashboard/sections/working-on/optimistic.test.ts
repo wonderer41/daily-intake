@@ -29,6 +29,8 @@ function item(id: string, done: boolean, extra: Partial<ChecklistItemDto> = {}):
     dueOn: null,
     done,
     doneAt: done ? AT : null,
+    doneBy: done ? "user" : null,
+    donePush: null,
     isCurrent: false,
     position: 0,
     createdBy: "user",
@@ -89,9 +91,11 @@ test("setting is idempotent", () => {
   const once = setItemDone(before, "c1", "a", true, AT);
   const twice = setItemDone(once, "c1", "a", true, AT);
   assert.deepEqual(twice, once);
+  assert.equal(cardOf(once).items[0].doneBy, "user");
   const unchecked = setItemDone(twice, "c1", "a", false, AT);
   assert.equal(cardOf(unchecked).items[0].done, false);
   assert.equal(cardOf(unchecked).items[0].doneAt, null);
+  assert.equal(cardOf(unchecked).items[0].doneBy, null);
   assert.deepEqual(cardOf(unchecked).progress, { done: 0, total: 2 });
 });
 
@@ -109,6 +113,9 @@ test("confirming looks_done checks the item; confirming partial just drops the n
   const before = page([item("a", false, { progress: [note("p1", "looks_done")] }), item("b", false, { progress: [note("p2", "partial")] })]);
   const done = confirmProgress(before, "c1", "a", "p1", AT);
   assert.equal(cardOf(done).items[0].done, true);
+  assert.equal(cardOf(done).items[0].doneBy, "push");
+  assert.deepEqual(cardOf(done).items[0].donePush, { repoFullName: "o/r", commitSha: "abcdef1234", commitUrl: "https://github.com/o/r/commit/abcdef1234" });
+  assert.deepEqual(cardOf(done).items[0].progress, []);
   assert.deepEqual(cardOf(done).progress, { done: 1, total: 2 });
   const partial = confirmProgress(before, "c1", "b", "p2", AT);
   assert.equal(cardOf(partial).items[1].done, false);

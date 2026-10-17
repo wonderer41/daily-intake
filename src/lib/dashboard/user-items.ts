@@ -59,6 +59,8 @@ function itemChanges(row: ChecklistItem, input: UpdateItemInput, now: Date): { f
     fields.push("done");
     data.done = input.done;
     data.doneAt = input.done ? now : null;
+    data.doneBy = input.done ? "user" : null;
+    data.doneProgressId = null;
   }
   if (input.isCurrent !== undefined && input.isCurrent !== row.isCurrent) {
     fields.push("isCurrent");

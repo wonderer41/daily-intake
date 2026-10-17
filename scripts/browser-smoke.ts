@@ -164,11 +164,12 @@ async function main(): Promise<void> {
     const on = await call<ChecklistItemDto>("PATCH", `/api/items/${i1.id}`, { version: i1.version, done: true });
     expectStatus(on, 200);
     check(on.body.done && on.body.doneAt !== null && on.body.version === i1.version + 1, "done should be true with doneAt and version +1");
+    check(on.body.doneBy === "user", `doneBy should be user, got ${on.body.doneBy}`);
     const card = (await cardsOfA()).find((c) => c.id === cards[0]?.id);
     check(card?.progress.done === 1 && card.progress.total === 3, "card progress should be 1 / 3");
     const off = await call<ChecklistItemDto>("PATCH", `/api/items/${i1.id}`, { version: on.body.version, done: false });
     expectStatus(off, 200);
-    check(!off.body.done && off.body.doneAt === null, "done should be false and doneAt cleared");
+    check(!off.body.done && off.body.doneAt === null && off.body.doneBy === null, "done should be false, doneAt and doneBy cleared");
     items[0] = off.body;
   });
 
@@ -254,8 +255,8 @@ async function main(): Promise<void> {
     const listed = body.workingOn.cards.map((c) => c.id);
     check(listed.indexOf(need(cards[1], "card 2").id) < listed.indexOf(need(cards[0], "card 1").id), "cards should follow the reorder");
     check(body.workingOn.cards.find((c) => c.id === cards[0]?.id)?.items.length === 3, "card 1 should carry its 3 items");
-    check(Array.isArray(body.warnings.alerts) && typeof body.warnings.waiting.gmailNeedsReply === "number", "warnings missing");
-    const seerr = body.warnings.waiting.seerrPending;
+    check(Array.isArray(body.warnings.alerts) && Array.isArray(body.warnings.notes.items), "warnings missing");
+    const seerr = body.warnings.notes.seerrPending;
     check(seerr === null || typeof seerr === "number", "seerrPending should be a number or null");
     const seerrSource = body.sources.seerr; // null when Seerr isn't set up (it is optional)
     check(typeof body.sources.calendar.ok === "boolean" && (seerrSource === null || typeof seerrSource.ok === "boolean"), "sources missing");

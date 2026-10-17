@@ -1,7 +1,7 @@
 # Daily Intake
 
 A personal, single-page daily dashboard for a homelab. One screen answers three questions: what is
-on my calendar today, what am I working on, and what is waiting on me or broken. Background jobs
+on my calendar today, what am I working on, and what needs me. Background jobs
 keep it current, a [Hermes](https://github.com/NousResearch/hermes-agent) agent writes to it through
 an HTTP API, and every change shows up on the open page within seconds.
 
@@ -29,10 +29,16 @@ _Screenshots coming soon._
   colour-coded, a "now" marker, and blocks Hermes booked shown in lilac. `?date=YYYY-MM-DD` shows
   another day.
 - **Working on.** Sprint cards with a checklist, a progress bar and the current item. A card can
-  point at a GitHub repo to show its last commit and commits this week. Hermes can suggest from a push
-  that an item looks done, but it never checks it off for you.
-- **Warnings.** "Broken" alerts, plus "Waiting on you": Gmail threads to answer, Seerr requests to
-  approve or decline (with a Temp / Permanent library switch), and links to Sonarr and Radarr.
+  point at a GitHub repo to show its last commit and commits this week. When you push to that repo
+  (its default branch or an open pull request), Hermes reviews the new commits and leaves push updates
+  on the items they moved forward or seem to finish. It never checks one off for you. A checked item
+  shows who checked it: you, Hermes, or a push you confirmed (linked to that commit).
+- **Important.** Things that need you, like notifications: alerts Hermes raises (a failed backup, a
+  Seerr request waiting for days, a mail left unanswered) and push updates from your repos. Critical
+  ones come first, the rest are grouped by source. Each one has a link or an action, and a Dismiss.
+- **Notes.** Small things to remember. You add, edit and delete your own; Hermes keeps its own up to
+  date (for example "PRs to review · 3"). Seerr requests to approve or decline (with a Temp /
+  Permanent library switch) sit at the top.
 
 There is no login. The page is meant to sit on your own network or VPN, with the client allowlist
 from [Security](#security) in front of it.
@@ -48,7 +54,8 @@ Hermes ──► /api/hermes/* ────────────────�
 ```
 
 - The **worker** is a separate process from the app. It syncs the calendar every 2 minutes, Seerr
-  every 2 minutes, stock quotes and GitHub every 5 minutes, and stock history once a day.
+  every 2 minutes, stock quotes and GitHub every 5 minutes, and stock history once a day. It also
+  hands new pushes on card repos to Hermes for review.
 - **Hermes** pushes what only an agent can work out: the Gmail summary, orphan media, the daily scan,
   alerts, the daily message, and cards, sprints and checklist items.
 - Every source is optional. A section whose source isn't set up stays empty or hides itself, and the
@@ -122,14 +129,16 @@ skips it too.
    to the anime library.
 4. Test: `npm run seerr:pending`.
 
-### GitHub (card meta)
+### GitHub (card meta and push review)
 
 1. Create a **fine-grained personal access token** (GitHub → Settings → Developer settings → Personal
    access tokens → Fine-grained tokens).
 2. Repository access: all repositories, or only the ones your cards point at. Permissions:
-   **Contents: Read-only** (Metadata: Read-only is added on its own). Nothing needs write access.
+   **Contents: Read-only** and **Pull requests: Read-only** (Metadata: Read-only is added on its own).
+   Nothing needs write access.
 3. Put it in `GITHUB_TOKEN`.
-4. Give a card a repo (`owner/name`), then test: `npm run sync:github`.
+4. Give a card a repo (`owner/name`), then test: `npm run sync:github`. It prints the card's meta line
+   and the branches the push review watches.
 
 ### Sonarr and Radarr (links)
 
@@ -148,7 +157,7 @@ Hermes and the dashboard talk in both directions. Each direction has its own sec
 ### Hermes → dashboard
 
 Hermes creates and updates cards, sprints, checklist items, the banner snapshots (Gmail, orphans,
-scan), alerts, the daily message and the stock watchlist.
+scan), alerts, notes, the daily message and the stock watchlist.
 
 1. Generate a token, for example with `openssl rand -hex 32`, and put it in `HERMES_DASHBOARD_TOKEN`.
 2. In Hermes's env file, set `DAILY_INTAKE_TOKEN` to the same value and `DAILY_INTAKE_URL` to where
@@ -158,9 +167,9 @@ scan), alerts, the daily message and the stock watchlist.
    from errors.
 4. Test against a running dev server: `npm run hermes:smoke`.
 
-### Dashboard → Hermes (scheduling)
+### Dashboard → Hermes (scheduling and push review)
 
-"Schedule with Hermes" on a checklist item or a Broken alert books a block on your calendar:
+"Schedule with Hermes" on a checklist item, or "Block time" on an Important alert, books a block on your calendar:
 
 1. The page checks the time and the cached calendar first. A clash comes back right away, with a
    one-click "Use HH:MM" for the next free slot.
@@ -181,6 +190,21 @@ To set it up:
    says so when it happens.
 4. Developing on another machine? Tunnel to it:
    `ssh -L 8642:<API_SERVER_HOST>:8642 <user>@<hermes-host>`, then use `http://127.0.0.1:8642/v1`.
+
+**Push review** uses the same connection. Every 5 minutes the GitHub sync looks at each card repo's
+default branch and open pull requests:
+
+1. New commits since the last review go to Hermes in one run: the commit messages, the changed files,
+   the diffs (about 60 KB at most; lock files left out) and the open items of that repo's cards.
+   Several pushes between two syncs become one review.
+2. Hermes answers with one line of JSON, and the dashboard turns it into push updates in Important and
+   on the card. Hermes needs no GitHub access of its own.
+3. A repo seen for the first time starts at its current commit. A new pull request has all its
+   commits reviewed. Commits a reviewed pull request brings into the default branch aren't reviewed
+   again.
+4. A failed review is retried on the next syncs. After 3 failures it moves on and raises
+   "Hermes couldn't review pushes on owner/repo" in Important, which clears after the next good review.
+   Without `HERMES_API_URL` nothing is reviewed and nothing piles up.
 
 The API server gives whoever holds the key Hermes's full tool access, terminal included. Keep it bound
 to loopback or a private Docker network, and never expose it through a proxy.

@@ -1,24 +1,28 @@
-import type { AlertDto, TodayResponse, WaitingDto } from "@/types/dashboard-contracts";
-import { BrokenPanel } from "./warnings-rail/broken-panel";
-import { WaitingPanel } from "./warnings-rail/waiting-panel";
+import type { AlertDto, NotesDto, TodayResponse, WorkCardDto } from "@/types/dashboard-contracts";
+import { importantGroups } from "./warnings-rail/format";
+import { ImportantPanel } from "./warnings-rail/important-panel";
+import { NotesPanel } from "./warnings-rail/notes-panel";
 
 export interface WarningsRailProps {
-  /** Open alerts, oldest first. The Broken panel is hidden when this is empty. */
+  /** Open alerts that weren't dismissed, oldest first. */
   alerts: AlertDto[];
-  waiting: WaitingDto;
+  /** Working-on cards: their items' pending push updates show in Important too. */
+  cards: WorkCardDto[];
+  notes: NotesDto;
   /** Integration health; the rail uses `sources.seerr` (<SourceDown name="Seerr" verb="checked" …>). */
   sources: TodayResponse["sources"];
 }
 
 /**
- * Warnings (1/3 column): the amber Broken panel (open alerts, "Block time" → Hermes scheduling
- * bubble) and Waiting on you (Gmail, Seerr approvals, orphan review).
+ * Warnings (1/3 column): the amber Important panel (alerts and push updates to act on or dismiss;
+ * hidden when empty) and Notes (Seerr, then Gerardo's and Hermes's notes).
  */
-export function WarningsRail({ alerts, waiting, sources }: WarningsRailProps) {
+export function WarningsRail({ alerts, cards, notes, sources }: WarningsRailProps) {
+  const groups = importantGroups(alerts, cards);
   return (
     <aside aria-label="Warnings" className="flex flex-col gap-6 text-[15px] leading-normal">
-      {alerts.length > 0 ? <BrokenPanel alerts={alerts} /> : null}
-      <WaitingPanel waiting={waiting} seerr={sources.seerr} />
+      {groups.length > 0 ? <ImportantPanel groups={groups} /> : null}
+      <NotesPanel notes={notes} seerr={sources.seerr} />
     </aside>
   );
 }

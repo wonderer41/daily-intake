@@ -64,6 +64,16 @@ export function CloseIcon(props: IconProps) {
   );
 }
 
+/** Head and shoulders: something Gerardo wrote or did himself. */
+export function PersonIcon({ strokeWidth = 1.6, ...props }: IconProps) {
+  return (
+    <Icon strokeWidth={strokeWidth} {...props}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+    </Icon>
+  );
+}
+
 /** Hermes speech bubble. */
 export function ChatIcon({ strokeWidth = 1.6, ...props }: IconProps) {
   return (
@@ -73,7 +83,7 @@ export function ChatIcon({ strokeWidth = 1.6, ...props }: IconProps) {
   );
 }
 
-/** Broken panel triangle. */
+/** Important panel triangle. */
 export function WarningIcon({ strokeWidth = 1.6, ...props }: IconProps) {
   return (
     <Icon strokeWidth={strokeWidth} {...props}>

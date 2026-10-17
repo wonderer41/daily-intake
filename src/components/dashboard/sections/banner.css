@@ -147,6 +147,29 @@
     color: var(--text-muted);
   }
 
+  .banner-orphans__links {
+    margin: 0;
+    display: flex;
+    gap: 4px 16px;
+    flex-wrap: wrap;
+  }
+
+  .banner-orphans__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--lilac-text);
+    text-underline-offset: 2px;
+  }
+
+  .banner-orphans__link:hover {
+    color: var(--lily-pink);
+    text-decoration: underline;
+  }
+
   .banner-muted {
     margin: 0;
     font-size: 13px;
