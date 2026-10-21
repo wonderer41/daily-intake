@@ -117,7 +117,7 @@ const gmail: SnapshotRow = {
 const orphans: SnapshotRow = {
   kind: "orphans",
   capturedAt: AT,
-  payload: { items: [{ name: "Show S01E04", kind: "episode", arr: "sonarr" }], counts: { sonarr: 5, radarr: 1 } },
+  payload: { total: 1, items: [{ name: "Show S01E04", checks: 2, firstSeenAt: "2026-10-07T13:00:00.000Z" }] },
 };
 
 function parts(overrides: Partial<TodayParts> = {}): TodayParts {
@@ -176,6 +176,7 @@ test("today: assembles banner, working-on, warnings and sources from what was re
       },
     ],
   });
+  assert.deepEqual(today.banner.orphans?.data.items, [{ name: "Show S01E04", checks: 2, firstSeenAt: "2026-10-07T13:00:00.000Z" }]);
   assert.deepEqual(today.banner.orphanLinks, { sonarrUrl: "https://sonarr.example.com", radarrUrl: null });
   assert.deepEqual(today.sources.calendar, { ok: true, lastSyncAt: today.timeline.lastSyncAt, error: null });
   assert.equal(today.sources.seerr?.ok, true);

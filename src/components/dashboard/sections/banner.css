@@ -368,11 +368,20 @@
   }
 
   .banner-orphans__name {
+    flex: 1 1 auto;
+    min-width: 0;
     overflow: hidden;
     font-size: 15px;
     color: var(--text-strong);
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .banner-orphans__checks {
+    flex-shrink: 0;
+    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--text-muted);
   }
 
   .banner-scan {

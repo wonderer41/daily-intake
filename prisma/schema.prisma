@@ -452,3 +452,16 @@ model WatchlistSymbol {
 
   @@index([position])
 }
+
+/// One top-level file or folder in orphaned_data, as seen by the weekly orphans check. Deleted when it
+/// is gone from the folder.
+model OrphanEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  /// Raw file/folder name as listed, e.g. "Movie.2024.1080p.BluRay".
+  name        String   @unique @db.VarChar(255)
+  /// Number of checks that listed it (1 on the first).
+  seenCount   Int      @default(1)
+  firstSeenAt DateTime
+  lastSeenAt  DateTime
+  updatedAt   DateTime @updatedAt
+}

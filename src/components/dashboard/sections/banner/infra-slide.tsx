@@ -1,13 +1,14 @@
 import { ExternalIcon } from "@/components/ui/icons";
 import { Eyebrow } from "@/components/ui/typography";
-import type { BannerDto, OrphansSnapshot, ScanSnapshot } from "@/types/dashboard-contracts";
-import { capRows, formatClockOrDay, plural } from "./format";
+import type { BannerDto, ScanSnapshot } from "@/types/dashboard-contracts";
+import { capRows, checksLabel, formatClockOrDay, plural } from "./format";
 
 /** Orphan names shown (the list is two or three columns wide); the rest collapse into "+N more". */
 const ORPHANS_SHOWN = 12;
 const ISSUES_SHOWN = 4;
 
 type OrphanLinks = BannerDto["orphanLinks"];
+type OrphansCheck = NonNullable<BannerDto["orphans"]>;
 
 /** Sonarr ↗ / Radarr ↗, where the orphans are reviewed; each only when its URL is set. */
 function ArrLinks({ links }: { links: OrphanLinks }) {
@@ -29,23 +30,26 @@ function ArrLinks({ links }: { links: OrphanLinks }) {
   );
 }
 
-function OrphansPanel({ data, links }: { data: OrphansSnapshot | null; links: OrphanLinks }) {
-  if (!data) {
+function OrphansPanel({ orphans, links, now, timeZone }: { orphans: OrphansCheck | null; links: OrphanLinks; now: Date; timeZone: string }) {
+  if (!orphans) {
     return (
       <div className="banner-orphans" role="group" aria-label="Orphans, manual review">
         <Eyebrow>Orphans · manual review</Eyebrow>
-        <p className="banner-muted">No orphan report yet.</p>
+        <p className="banner-muted">No orphan check yet.</p>
         <ArrLinks links={links} />
       </div>
     );
   }
-  const total = data.counts.sonarr + data.counts.radarr;
+  const { data } = orphans;
+  const checked = formatClockOrDay(new Date(orphans.capturedAt), now, timeZone);
   const names = capRows(data.items, ORPHANS_SHOWN);
+  // The snapshot keeps the longest-waiting names only; `total` counts them all.
+  const hidden = data.total - names.shown.length;
   return (
     <div className="banner-orphans" role="group" aria-label="Orphans, manual review">
       <div className="banner-split-head">
         <Eyebrow>Orphans · manual review</Eyebrow>
-        <p className="banner-meta">{`${plural(total, "item")} · sonarr ${data.counts.sonarr} · radarr ${data.counts.radarr}`}</p>
+        <p className="banner-meta">{`${plural(data.total, "item")}${checked ? ` · checked ${checked}` : ""}`}</p>
         <ArrLinks links={links} />
       </div>
       {names.shown.length > 0 ? (
@@ -57,10 +61,14 @@ function OrphansPanel({ data, links }: { data: OrphansSnapshot | null; links: Or
                 <span className="banner-orphans__name" title={item.name}>
                   {item.name}
                 </span>
+                <span className="banner-orphans__checks">
+                  <span className="sr-only">, </span>
+                  {checksLabel(item.checks)}
+                </span>
               </li>
             ))}
           </ul>
-          {names.hidden > 0 ? <p className="banner-muted">{`+${names.hidden} more`}</p> : null}
+          {hidden > 0 ? <p className="banner-muted">{`+${hidden} more`}</p> : null}
         </>
       ) : (
         <p className="banner-muted">Nothing to review.</p>
@@ -108,7 +116,8 @@ function ScanPanel({ data, now, timeZone }: { data: ScanSnapshot | null; now: Da
 }
 
 export interface InfraSlideProps {
-  orphans: OrphansSnapshot | null;
+  /** The newest orphans check: its time ("checked 07:00") and list. */
+  orphans: OrphansCheck | null;
   orphanLinks: OrphanLinks;
   scan: ScanSnapshot | null;
   timeZone: string;
@@ -119,7 +128,7 @@ export interface InfraSlideProps {
 export function InfraSlide({ orphans, orphanLinks, scan, timeZone, now }: InfraSlideProps) {
   return (
     <div className="banner-infra">
-      <OrphansPanel data={orphans} links={orphanLinks} />
+      <OrphansPanel orphans={orphans} links={orphanLinks} now={now} timeZone={timeZone} />
       <ScanPanel data={scan} now={now} timeZone={timeZone} />
     </div>
   );

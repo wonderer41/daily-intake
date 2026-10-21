@@ -17,12 +17,17 @@ import type { BannerKind, GmailSnapshot, OrphansSnapshot, ScanSnapshot, StocksSn
 // src/types/dashboard-contracts.ts. Unknown fields are rejected at every level, so a Gmail
 // payment can never carry an amount and orphans stay names-only.
 
-export const BANNER_KINDS: readonly BannerKind[] = ["gmail", "orphans", "scan", "stocks"];
+/** The kinds Hermes may push (PUT /api/hermes/banner/:kind). Orphans come from the worker's own check. */
+export type HermesBannerKind = Exclude<BannerKind, "orphans">;
+export const HERMES_BANNER_KINDS: readonly HermesBannerKind[] = ["gmail", "scan", "stocks"];
 
 export type SnapshotPayload = GmailSnapshot | OrphansSnapshot | ScanSnapshot | StocksSnapshot;
 
 const MAX_LIST = 50;
-const MAX_ORPHANS = 200;
+/** Orphan names kept in one snapshot (the longest-waiting ones); `total` still counts them all. */
+export const MAX_ORPHANS = 500;
+/** Linux file names are at most 255 bytes, so never longer than this. */
+const MAX_ORPHAN_NAME = 255;
 const MAX_ISSUES = 100;
 const MAX_STOCK_ROWS = 50;
 const MAX_COUNT = 1_000_000;
@@ -66,18 +71,22 @@ function parseGmail(o: Record<string, unknown>): GmailSnapshot {
 }
 
 function parseOrphans(o: Record<string, unknown>): OrphansSnapshot {
-  const counts = strictObject(o.counts, "counts", ["sonarr", "radarr"]);
-  return {
-    items: arrayOf(o.items, "items", MAX_ORPHANS, (value, field) => {
-      const row = strictObject(value, field, ["name", "kind", "arr"]);
-      return {
-        name: requiredString(row.name, fieldPath(field, "name"), 300),
-        kind: enumValue(row.kind, fieldPath(field, "kind"), ["episode", "movie"] as const),
-        arr: enumValue(row.arr, fieldPath(field, "arr"), ["sonarr", "radarr"] as const),
-      };
-    }),
-    counts: { sonarr: count(counts.sonarr, "counts.sonarr"), radarr: count(counts.radarr, "counts.radarr") },
-  };
+  const items = arrayOf(o.items, "items", MAX_ORPHANS, (value, field) => {
+    const row = strictObject(value, field, ["name", "checks", "firstSeenAt"]);
+    // Kept exactly as listed (no trimming): it is a file name.
+    const name = row.name;
+    if (typeof name !== "string" || name.length === 0 || name.length > MAX_ORPHAN_NAME) {
+      invalid(fieldPath(field, "name"), `must be a file name of 1–${MAX_ORPHAN_NAME} characters`);
+    }
+    return {
+      name,
+      checks: count(row.checks, fieldPath(field, "checks")),
+      firstSeenAt: isoDateTime(row.firstSeenAt, fieldPath(field, "firstSeenAt")),
+    };
+  });
+  const total = count(o.total, "total");
+  if (total < items.length) invalid("total", "must be at least the number of items");
+  return { total, items };
 }
 
 function parseScan(o: Record<string, unknown>): ScanSnapshot {
@@ -125,7 +134,7 @@ function parseStocks(o: Record<string, unknown>): StocksSnapshot {
 
 const FIELDS: Record<BannerKind, readonly string[]> = {
   gmail: ["since", "needsReply", "packages", "payments", "deletedCount", "archivedCount"],
-  orphans: ["items", "counts"],
+  orphans: ["total", "items"],
   scan: ["ranAt", "up", "total", "issues"],
   stocks: ["asOf", "rows"],
 };
@@ -145,6 +154,6 @@ export function parseSnapshotPayload(kind: BannerKind, value: unknown): Snapshot
   }
 }
 
-export function parseBannerKind(value: string): BannerKind {
-  return enumValue(value, "kind", BANNER_KINDS);
+export function parseHermesBannerKind(value: string): HermesBannerKind {
+  return enumValue(value, "kind", HERMES_BANNER_KINDS);
 }

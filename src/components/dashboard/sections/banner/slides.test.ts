@@ -4,7 +4,7 @@ import type { BannerDto } from "@/types/dashboard-contracts";
 import { availableSlides, oldestSlide } from "./slides";
 
 const gmail = { since: "2026-10-14T14:00:00Z", needsReply: [], packages: [], payments: [], deletedCount: 0, archivedCount: 0 };
-const orphans = { items: [], counts: { sonarr: 0, radarr: 0 } };
+const orphans = { total: 0, items: [] };
 const scan = { ranAt: "2026-10-14T12:00:00Z", up: 1, total: 1, issues: [] };
 const stocks = { asOf: "2026-10-14T17:40:00Z", rows: [{ symbol: "NVDA", price: 181.2, currency: "USD", dayChangePct: 1.4, sixMonthChangePct: 22.5 }] };
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { HttpError } from "@/lib/api/http";
-import { parseBannerKind, parseSnapshotPayload } from "./banner-payload";
+import { parseHermesBannerKind, parseSnapshotPayload } from "./banner-payload";
 
 function field(run: () => unknown): string {
   try {
@@ -56,15 +56,22 @@ test("gmail packages may carry their thread and latest mail time", () => {
 });
 
 test("orphans and scan payloads", () => {
-  parseSnapshotPayload("orphans", { items: [{ name: "Show S01E02", kind: "episode", arr: "sonarr" }], counts: { sonarr: 1, radarr: 0 } });
-  assert.equal(field(() => parseSnapshotPayload("orphans", { items: [{ name: "x", kind: "album", arr: "sonarr" }], counts: { sonarr: 1, radarr: 0 } })), "items[0].kind");
-  assert.equal(field(() => parseSnapshotPayload("orphans", { items: [], counts: { sonarr: 0 } })), "counts.radarr");
+  const orphan = { name: " .abc123.parts", checks: 2, firstSeenAt: "2026-10-14T13:00:00.000Z" };
+  // Names are file names: kept exactly, leading space and dot included.
+  assert.deepEqual(parseSnapshotPayload("orphans", { total: 3, items: [orphan] }), { total: 3, items: [orphan] });
+  assert.equal(field(() => parseSnapshotPayload("orphans", { total: 1, items: [{ ...orphan, name: "" }] })), "items[0].name");
+  assert.equal(field(() => parseSnapshotPayload("orphans", { total: 1, items: [{ ...orphan, name: "x".repeat(256) }] })), "items[0].name");
+  assert.equal(field(() => parseSnapshotPayload("orphans", { total: 1, items: [{ ...orphan, checks: -1 }] })), "items[0].checks");
+  assert.equal(field(() => parseSnapshotPayload("orphans", { total: 0, items: [orphan] })), "total");
+  // The old Hermes shape reads as invalid, so a stored one is ignored.
+  assert.equal(field(() => parseSnapshotPayload("orphans", { items: [], counts: { sonarr: 0, radarr: 0 } })), "counts");
   parseSnapshotPayload("scan", { ranAt: "2026-10-14T12:00:00Z", up: 30, total: 31, issues: [{ container: "jellyfin", summary: "restarting" }] });
   assert.equal(field(() => parseSnapshotPayload("scan", { ranAt: "2026-10-14T12:00:00Z", up: 32, total: 31, issues: [] })), "up");
   assert.equal(field(() => parseSnapshotPayload("scan", { ranAt: "2026-10-14T12:00:00Z", up: 1, total: 1, issues: [], capturedAt: "x" })), "capturedAt");
 });
 
-test("unknown kinds are rejected", () => {
-  assert.equal(parseBannerKind("scan"), "scan");
-  assert.equal(field(() => parseBannerKind("weather")), "kind");
+test("Hermes may push gmail, scan and stocks; unknown kinds and orphans are rejected", () => {
+  assert.equal(parseHermesBannerKind("scan"), "scan");
+  assert.equal(field(() => parseHermesBannerKind("weather")), "kind");
+  assert.equal(field(() => parseHermesBannerKind("orphans")), "kind");
 });

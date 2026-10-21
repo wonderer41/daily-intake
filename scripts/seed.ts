@@ -135,6 +135,8 @@ async function seed(): Promise<void> {
   const today = localDateString(now, timeZone);
   // A local wall-clock time today, never later than now (so "since 08:00" is not in the future before 08:00).
   const at = (minutes: number) => new Date(Math.min(now.getTime(), zonedTimeToUtc(today, minutes, timeZone).getTime()));
+  // Orphans were first seen on earlier Wednesday checks (07:00).
+  const daysBefore = (days: number) => new Date(zonedTimeToUtc(today, 7 * 60, timeZone).getTime() - days * 86_400_000);
   const events: LiveEvent[] = [];
   const counts = { sprint: tally(), cards: tally(), items: tally(), events: tally(), snapshots: tally(), alert: tally(), note: tally(), message: tally() };
   let sprintNote = "";
@@ -292,15 +294,15 @@ async function seed(): Promise<void> {
           kind: "orphans",
           capturedAt: at(6 * 60 + 15),
           payload: {
+            total: 6,
             items: [
-              { name: "[Series] S01E04", kind: "episode", arr: "sonarr" },
-              { name: "[Series] S01E05", kind: "episode", arr: "sonarr" },
-              { name: "[Series] S02E11", kind: "episode", arr: "sonarr" },
-              { name: "[Anime] E07", kind: "episode", arr: "sonarr" },
-              { name: "[Movie] (year)", kind: "movie", arr: "radarr" },
-              { name: "[Series] S03E01", kind: "episode", arr: "sonarr" },
+              { name: "[Movie].(year).[release]", checks: 3, firstSeenAt: daysBefore(20).toISOString() },
+              { name: "[Series].S01E04.[release]", checks: 2, firstSeenAt: daysBefore(13).toISOString() },
+              { name: "[Anime] - 07 [release]", checks: 1, firstSeenAt: daysBefore(6).toISOString() },
+              { name: "[Series].S02E11.[release]", checks: 1, firstSeenAt: daysBefore(6).toISOString() },
+              { name: ".[hash].parts", checks: 1, firstSeenAt: daysBefore(6).toISOString() },
+              { name: "[Movie].(year).[disc]", checks: 0, firstSeenAt: at(5 * 60).toISOString() },
             ],
-            counts: { sonarr: 5, radarr: 1 },
           },
         },
         {

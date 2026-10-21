@@ -1,5 +1,6 @@
 import { safeErrorMessage, safeLogText } from "@/lib/live/redact";
-import { describeTrigger, formatDuration, type JobTrigger, nextDailyRun, nextIntervalRun, validateTrigger } from "./schedule";
+import { formatClock, localDateString } from "@/lib/time/zone";
+import { type ClockTrigger, describeTrigger, formatDuration, type JobTrigger, nextClockRun, nextIntervalRun, previousClockRun, validateTrigger } from "./schedule";
 
 export interface JobContext {
   /** When this run actually started. */
@@ -16,12 +17,18 @@ export interface WorkerJob {
   /**
    * `everyMs`: runs once at start, then on a fixed-rate interval (a tick that arrives while the
    * previous run is still going is skipped). `dailyAt`: runs at that local time every day.
+   * `weeklyAt`: runs at that local weekday and time every week.
    */
   trigger: JobTrigger;
   /** Does the work. The returned text (counts, not secrets) is appended to the "ok" log line. */
   run: (context: JobContext) => Promise<string | void>;
   /** Skip the "ok" log line when a run returns no text (for frequent polling jobs that usually find nothing). */
   quiet?: boolean;
+  /**
+   * dailyAt / weeklyAt only: when the job last ran (null = never). At start, a job whose latest
+   * run time passed without a run runs right away, so a worker that was down then catches up.
+   */
+  lastRunAt?: () => Promise<Date | null>;
 }
 
 export interface SchedulerOptions {
@@ -60,6 +67,7 @@ export class Scheduler {
     if (this.jobs.has(job.name)) throw new Error(`Job "${job.name}" is registered twice`);
     try {
       validateTrigger(job.trigger);
+      if (job.lastRunAt && "everyMs" in job.trigger) throw new Error("lastRunAt needs a dailyAt or weeklyAt trigger");
     } catch (error) {
       throw new Error(`Job "${job.name}": ${error instanceof Error ? error.message : "invalid trigger"}`);
     }
@@ -77,7 +85,29 @@ export class Scheduler {
     const now = new Date();
     for (const state of this.jobs.values()) {
       const { trigger } = state.job;
-      this.plan(state, "everyMs" in trigger ? now : nextDailyRun(now, trigger.dailyAt, this.options.timeZone));
+      if ("everyMs" in trigger) {
+        this.plan(state, now);
+        continue;
+      }
+      this.plan(state, nextClockRun(now, trigger, this.options.timeZone));
+      if (state.job.lastRunAt) void this.catchUp(state, trigger, state.job.lastRunAt, now);
+    }
+  }
+
+  /** Runs a clock job right away when its latest run time before `startedAt` passed without a run. */
+  private async catchUp(state: JobState, trigger: ClockTrigger, lastRunAt: () => Promise<Date | null>, startedAt: Date): Promise<void> {
+    const { timeZone } = this.options;
+    try {
+      const missed = previousClockRun(startedAt, trigger, timeZone);
+      const last = await lastRunAt();
+      if (last && last.getTime() >= missed.getTime()) return;
+      if (this.stopping || state.running || !state.nextAt) return;
+      if (state.timer) clearTimeout(state.timer);
+      state.timer = null;
+      this.log(`[worker] ${state.job.name} catching up the run missed at ${localDateString(missed, timeZone)} ${formatClock(missed, timeZone)}`);
+      this.plan(state, missed);
+    } catch (error) {
+      this.logError(`[worker] ${state.job.name} catch-up check failed: ${safeErrorMessage(error)}`);
     }
   }
 
@@ -129,7 +159,7 @@ export class Scheduler {
     const now = new Date();
     try {
       if ("everyMs" in trigger) return nextIntervalRun(startedAt, trigger.everyMs, now);
-      return nextDailyRun(new Date(Math.max(now.getTime(), scheduledFor.getTime())), trigger.dailyAt, this.options.timeZone);
+      return nextClockRun(new Date(Math.max(now.getTime(), scheduledFor.getTime())), trigger, this.options.timeZone);
     } catch (error) {
       this.logError(`[worker] scheduling failed, retrying in 1m: ${safeErrorMessage(error)}`);
       return new Date(now.getTime() + 60_000);

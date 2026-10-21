@@ -4,6 +4,7 @@
 # - migrate  : same image as the app, applies prisma/migrations once, then exits.
 # - app      : Next.js on port 4849.
 # - worker   : background jobs (scripts/worker.ts), a separate container from the SAME image.
+#              Reads the host's orphaned_data folder (ORPHANS_DIR) through a read-only bind mount.
 #
 # app, worker and migrate use `network_mode: host`, so they reach Postgres on 127.0.0.1:5432 and
 # Hermes's API server on whatever address it binds (HERMES_API_URL). All settings come from the
@@ -71,6 +72,10 @@ services:
     restart: unless-stopped
     # On stop the worker lets the running job finish first.
     stop_grace_period: 30s
+    # The host's orphaned_data folder, read-only, at the same path inside the container. If the path
+    # does not exist on the host (typo, NAS not mounted yet), Docker creates it empty and owned by root.
+    volumes:
+      - ${ORPHANS_DIR:?set ORPHANS_DIR in .env}:${ORPHANS_DIR}:ro
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -14,7 +14,7 @@ The stack has four services, all from one image except Postgres:
 | `postgres` | PostgreSQL 17, published on `127.0.0.1:5432` only, data in the `postgres-data` volume |
 | `migrate` | `prisma migrate deploy`, then exits. `app` and `worker` wait for it to succeed |
 | `app` | Next.js on port **4849**, host network, healthcheck on `/api/health` |
-| `worker` | `scripts/worker.ts` (background jobs), host network, separate container |
+| `worker` | `scripts/worker.ts` (background jobs), host network, separate container, `ORPHANS_DIR` mounted read-only |
 
 ## Image tags
 
@@ -38,6 +38,8 @@ The stack has four services, all from one image except Postgres:
    - **Environment**: paste `deploy/.env.example` and fill in the values (see the root
      `.env.example` for what each one does). Set `APP_IMAGE` to the real image,
      e.g. `ghcr.io/<owner>/<repo>:latest`. `DATABASE_URL` must match the `POSTGRES_*` values.
+     `ORPHANS_DIR` is the host path of the `orphaned_data` folder; uid 1000 (the worker's user)
+     must be able to list it.
 3. **Deploy.** Order is handled by compose: postgres healthy, then migrate, then app and worker.
 4. **Check it** on the host: `curl http://127.0.0.1:4849/api/health` returns
    `{"ok":true,"db":true,...}`. Then point the Nginx Proxy Manager host at port 4849.

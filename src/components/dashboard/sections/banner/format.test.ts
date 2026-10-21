@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { authorLabel, capRows, chunk, formatChange, formatClockOrDay, formatPrice, plural, sameCurrency } from "./format";
+import { authorLabel, capRows, checksLabel, chunk, formatChange, formatClockOrDay, formatPrice, plural, sameCurrency } from "./format";
 
 const zone = "America/Denver";
 const now = new Date("2026-10-14T18:00:00Z"); // 12:00 MDT
@@ -90,4 +90,11 @@ test("local day, not UTC day, decides: 23:30 MDT the night before is yesterday",
 
 test("an invalid time renders as nothing", () => {
   assert.equal(formatClockOrDay(new Date("nope"), now, zone), "");
+});
+
+test("an orphan is new until its second Wednesday check", () => {
+  assert.equal(checksLabel(0), "new");
+  assert.equal(checksLabel(1), "new");
+  assert.equal(checksLabel(2), "2 checks");
+  assert.equal(checksLabel(7), "7 checks");
 });

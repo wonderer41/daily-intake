@@ -22,7 +22,7 @@ Load the `daily-intake` skill first. It has the connection, reading state, keys 
 Important lists what the user has to attend to or act on, a bit like notifications. There are two kinds of alerts:
 
 - **Problems**, such as a failing container, a failed backup or a full disk.
-- **Escalations**: something that lives elsewhere and now needs the user, because it waited too long or matters. Examples are a mail left unanswered for days, a big move on a stock they follow, or a movie stuck in the orphan folder. The job skills (`daily-intake-gmail`, `daily-intake-orphans-scan`, `daily-intake-stock-swings`) say when to raise theirs.
+- **Escalations**: something that lives elsewhere and now needs the user, because it waited too long or matters. Examples are a mail left unanswered for days or a big move on a stock they follow. The job skills (`daily-intake-gmail`, `daily-intake-stock-swings`) say when to raise theirs. The dashboard raises its own escalations (Seerr requests waiting too long, orphans left in the orphan folder); never raise or resolve those.
 
 Small things to remember go to Notes instead (the `daily-intake-notes` skill).
 
@@ -38,7 +38,7 @@ On the page, critical alerts come first and the rest are grouped by `source`. Ea
 ```
 
 - `dedupeKey` uses the alert key format, `<source>:<thing>`, for example `container:jellyfin` or `proxmox:vzdump:vm100`. Use the same key every time for the same problem.
-- `source` names where the alert comes from, in lowercase, such as `proxmox`, `gmail`, `stocks` or `orphans`. It is at most 100 characters, and the page groups alerts by it.
+- `source` names where the alert comes from, in lowercase, such as `proxmox`, `gmail`, `stocks` or `containers`. It is at most 100 characters, and the page groups alerts by it.
 - `title` is at most 200 characters. `detail` is at most 500 characters.
 - `source` and `title` are required on every PUT. Send the current values if you don't mean to change them.
 - `url` is where the user acts on it, shown as ↗ on the page. It must be http(s).

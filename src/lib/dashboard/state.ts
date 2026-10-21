@@ -15,7 +15,6 @@ import { currentItem, dateOnly, itemDoneBy, toDbDate, toSprintDto } from "./dto"
 import { findCheckin, toHermesCheckin, weekOf } from "./checkin";
 import { dueOnDto } from "./due";
 import { listAllNotes, toNoteDto } from "./notes";
-import { linkFromEnv } from "./today";
 
 /** Days of earlier daily messages in the state, so Hermes can avoid repeating a word or fact. */
 const RECENT_MESSAGE_DAYS = 60;
@@ -132,7 +131,6 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     gmail: stored<GmailSnapshot>("gmail", gmail),
     stocks: stored<StocksSnapshot>("stocks", stocks)?.data ?? null,
     orphans: stored<OrphansSnapshot>("orphans", orphans),
-    orphanLinks: { sonarrUrl: linkFromEnv(process.env.SONARR_URL), radarrUrl: linkFromEnv(process.env.RADARR_URL) },
   };
 }
 

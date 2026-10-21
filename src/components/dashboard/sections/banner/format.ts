@@ -71,6 +71,11 @@ export function chunk<T>(items: readonly T[], size: number): T[][] {
   return columns;
 }
 
+/** An orphan's age: "3 checks" once it has been listed on two Wednesday checks or more, "new" before that. */
+export function checksLabel(checks: number): string {
+  return checks <= 1 ? "new" : `${checks} checks`;
+}
+
 /** The first `cap` rows and how many were left out ("+3 more"). */
 export function capRows<T>(items: readonly T[], cap: number): { shown: T[]; hidden: number } {
   return { shown: items.slice(0, cap), hidden: Math.max(0, items.length - cap) };

@@ -157,6 +157,75 @@ test("daily jobs run at the local time with scheduledFor set to that instant", a
   await scheduler.stop();
 });
 
+// T0 is Wednesday 2026-10-14 15:00 Denver; that day's 07:00 run is 13:00Z.
+const WEEKLY = { weeklyAt: { weekday: 3, hour: 7, minute: 0 } };
+
+test("a weekly job whose last run time passed without a run catches up at start", async (t) => {
+  for (const lastRun of [new Date("2026-10-07T13:00:02.000Z"), null]) {
+    const { scheduler, lines } = setup(t);
+    const contexts: JobContext[] = [];
+    scheduler.register({
+      name: "weekly",
+      trigger: WEEKLY,
+      lastRunAt: async () => lastRun,
+      run: async (context) => {
+        contexts.push(context);
+      },
+    });
+
+    scheduler.start();
+    await flush();
+    assert.equal(contexts.length, 1);
+    assert.equal(contexts[0].scheduledFor.toISOString(), "2026-10-14T13:00:00.000Z");
+    assert.equal(lines[0], "[worker] weekly catching up the run missed at 2026-10-14 07:00");
+    assert.equal(scheduler.nextRuns()[0].nextAt?.toISOString(), "2026-10-21T13:00:00.000Z");
+    await scheduler.stop();
+    t.mock.timers.reset();
+  }
+});
+
+test("a weekly job that already ran this week waits for its next run time", async (t) => {
+  const { scheduler, lines } = setup(t);
+  let calls = 0;
+  scheduler.register({
+    name: "weekly",
+    trigger: WEEKLY,
+    lastRunAt: async () => new Date("2026-10-14T13:00:01.000Z"),
+    run: async () => {
+      calls += 1;
+    },
+  });
+
+  scheduler.start();
+  await flush();
+  assert.equal(calls, 0);
+  assert.deepEqual(lines, []);
+  assert.equal(scheduler.nextRuns()[0].nextAt?.toISOString(), "2026-10-21T13:00:00.000Z");
+  await scheduler.stop();
+});
+
+test("a failed catch-up check is logged and the job keeps its normal schedule", async (t) => {
+  const { scheduler, lines } = setup(t);
+  let calls = 0;
+  scheduler.register({
+    name: "weekly",
+    trigger: WEEKLY,
+    lastRunAt: async () => {
+      throw new Error("database is down");
+    },
+    run: async () => {
+      calls += 1;
+    },
+  });
+
+  scheduler.start();
+  await flush();
+  assert.equal(calls, 0);
+  assert.deepEqual(lines, ["[worker] weekly catch-up check failed: database is down"]);
+  assert.equal(scheduler.nextRuns()[0].nextAt?.toISOString(), "2026-10-21T13:00:00.000Z");
+  await scheduler.stop();
+});
+
 test("job names must be unique kebab-case and triggers valid", () => {
   const scheduler = new Scheduler({ timeZone: DENVER, log: () => {}, logError: () => {} });
   const run = async () => {};
@@ -164,4 +233,8 @@ test("job names must be unique kebab-case and triggers valid", () => {
   assert.throws(() => scheduler.register({ name: "calendar-sync", trigger: { everyMs: 120_000 }, run }), /registered twice/);
   assert.throws(() => scheduler.register({ name: "Calendar Sync", trigger: { everyMs: 120_000 }, run }), /kebab-case/);
   assert.throws(() => scheduler.register({ name: "too-fast", trigger: { everyMs: 10 }, run }), /too-fast.*everyMs/);
+  assert.throws(
+    () => scheduler.register({ name: "interval-catch-up", trigger: { everyMs: 120_000 }, lastRunAt: async () => null, run }),
+    /interval-catch-up.*lastRunAt/,
+  );
 });

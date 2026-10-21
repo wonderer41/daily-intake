@@ -36,7 +36,7 @@ function SlideBody({ id, banner, timeZone, now }: SlideBodyProps) {
     case "infra":
       return (
         <InfraSlide
-          orphans={banner.orphans?.data ?? null}
+          orphans={banner.orphans}
           orphanLinks={banner.orphanLinks}
           scan={banner.scan?.data ?? null}
           timeZone={timeZone}

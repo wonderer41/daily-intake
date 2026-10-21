@@ -145,7 +145,7 @@ async function main(): Promise<void> {
     check(Array.isArray(body.recentDailyMessages) && body.recentDailyMessages.every((m) => m.date < body.date), "state.recentDailyMessages should only hold earlier days");
     check(body.stocks === null || Array.isArray(body.stocks.rows), "state.stocks should be null or the newest quotes");
     check(body.orphans === null || Array.isArray(body.orphans.data.items), "state.orphans should be null or the newest snapshot");
-    check(typeof body.orphanLinks === "object" && "sonarrUrl" in body.orphanLinks && "radarrUrl" in body.orphanLinks, "state.orphanLinks is missing");
+    check(!("orphanLinks" in body), "state.orphanLinks should be gone");
     return `${body.cards.length} cards, ${body.alerts.length} open alerts, ${body.notes.length} notes, date ${body.date}`;
   });
 
@@ -433,6 +433,13 @@ async function main(): Promise<void> {
     const reply = await call<ErrorBody>("PUT", "/api/hermes/banner/stocks", bad);
     expectStatus(reply, 400);
     check(JSON.stringify(reply.body.error.details) === JSON.stringify({ field: "rows[0].price" }), "details.field should be rows[0].price");
+    return reply.body.error.message;
+  });
+
+  await step("orphans banner → 400 (the worker keeps that list)", async () => {
+    const reply = await call<ErrorBody>("PUT", "/api/hermes/banner/orphans", { total: 0, items: [], capturedAt });
+    expectStatus(reply, 400);
+    check(JSON.stringify(reply.body.error.details) === JSON.stringify({ field: "kind" }), "details.field should be kind");
     return reply.body.error.message;
   });
 

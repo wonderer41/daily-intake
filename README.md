@@ -22,9 +22,9 @@ _Screenshots coming soon._
 ## What's on the page
 
 - **Banner.** Slides that rotate on their own: a daily message, a Gmail summary (needs a reply,
-  packages, payments, deleted), orphan media plus a daily container scan, and your stock watchlist
-  (the first 12 symbols) with the day's change and the 6-month change. A slide with no data is
-  skipped.
+  packages, payments, deleted), what's left in the orphan folder plus a daily container scan, and
+  your stock watchlist (the first 12 symbols) with the day's change and the 6-month change. A slide
+  with no data is skipped.
 - **Timeline.** Today's Google Calendar as a row of cards, with the free time between events
   colour-coded, a "now" marker, and blocks Hermes booked shown in lilac. `?date=YYYY-MM-DD` shows
   another day.
@@ -34,8 +34,8 @@ _Screenshots coming soon._
   on the items they moved forward or seem to finish. It never checks one off for you. A checked item
   shows who checked it: you, Hermes, or a push you confirmed (linked to that commit).
 - **Important.** Things that need you, like notifications: alerts Hermes raises (a failed backup, a
-  mail left unanswered for days, an unusual move on a stock you follow, an orphan nobody fixed), Seerr
-  requests waiting for days, and push updates from your repos. Critical ones come first, the rest are
+  mail left unanswered for days, an unusual move on a stock you follow), Seerr requests waiting for
+  days, orphans nobody fixed, and push updates from your repos. Critical ones come first, the rest are
   grouped by source. Each one has a link or an action, and a Dismiss.
 - **Notes.** Small things to remember. You add, edit and delete your own; Hermes keeps its own up to
   date (for example "PRs to review · 3"). Seerr requests to approve or decline (with a Temp /
@@ -49,16 +49,17 @@ from [Security](#security) in front of it.
 ```
 Google Calendar ─┐
 Finnhub, Tiingo ─┤
-Seerr, GitHub   ─┴─► worker (background jobs) ─┐
+Seerr, GitHub   ─┤
+orphan folder   ─┴─► worker (background jobs) ─┐
                                                ├─► PostgreSQL ─► Next.js page ─► your browser
 Hermes ──► /api/hermes/* ──────────────────────┘                (live updates over /api/stream)
 ```
 
 - The **worker** is a separate process from the app. It syncs the calendar every 2 minutes, Seerr
-  every 2 minutes, stock quotes and GitHub every 5 minutes, and stock history once a day. It also
-  hands new pushes on card repos to Hermes for review.
-- **Hermes** pushes what only an agent can work out: the Gmail summary, orphan media, the daily scan,
-  alerts, the daily message, and cards, sprints and checklist items.
+  every 2 minutes, stock quotes and GitHub every 5 minutes, stock history once a day, and the orphan
+  folder every Wednesday. It also hands new pushes on card repos to Hermes for review.
+- **Hermes** pushes what only an agent can work out: the Gmail summary, the daily scan, alerts, the
+  daily message, and cards, sprints and checklist items.
 - Every source is optional. A section whose source isn't set up stays empty or hides itself, and the
   rest of the page keeps working.
 
@@ -143,10 +144,30 @@ skips it too.
 4. Give a card a repo (`owner/name`), then test: `npm run sync:github`. It prints the card's meta line
    and the branches the push review watches.
 
+### Orphans folder
+
+Optional. Leave `ORPHANS_DIR` empty and the orphans check is off. In the deploy stack it is required:
+the worker gets the folder through a read-only mount (see [deploy/README.md](deploy/README.md)).
+
+`ORPHANS_DIR` is the `orphaned_data` folder qbit_manage moves leftover downloads to. The worker only
+lists its top level: each file or folder there, dotfiles included, is one orphan.
+
+1. Every Wednesday at 07:00 (dashboard time zone) the worker checks the folder. If it was down then,
+   it runs the check when it starts. An orphan still there gets one more check, a new one starts at
+   1, and a gone one is removed.
+2. An orphan listed on 2 Wednesday checks in a row shows in Important ("Still in orphaned_data after
+   N checks") until it leaves the folder.
+3. If the folder isn't mounted (empty and owned by root, which is the folder Docker creates when the
+   host path doesn't exist) or can't be read, the worker logs it every hour. The Wednesday check also
+   raises "Set up the orphans mount" in Important, the first two Wednesdays in a row; after that only
+   the log. The next good check resolves it.
+4. After you fix orphans by hand, run `npm run orphans:check`. It refreshes the list and resolves the
+   fixed ones, but doesn't count as a check.
+
 ### Sonarr and Radarr (links)
 
-`SONARR_URL` and `RADARR_URL` are only browser links on the orphan-review tiles. The app never calls
-their APIs.
+`SONARR_URL` and `RADARR_URL` are only browser links on the banner's orphans panel. The app never
+calls their APIs.
 
 ### Jira
 
@@ -159,8 +180,8 @@ Hermes and the dashboard talk in both directions. Each direction has its own sec
 
 ### Hermes → dashboard
 
-Hermes creates and updates cards, sprints, checklist items, the banner snapshots (Gmail, orphans,
-scan), alerts, notes, the daily message and the stock watchlist.
+Hermes creates and updates cards, sprints, checklist items, the banner snapshots (Gmail, scan),
+alerts, notes, the daily message and the stock watchlist.
 
 1. Generate a token, for example with `openssl rand -hex 32`, and put it in `HERMES_DASHBOARD_TOKEN`.
 2. In Hermes's env file, set `DAILY_INTAKE_TOKEN` to the same value and `DAILY_INTAKE_URL` to where
@@ -225,7 +246,7 @@ in Hermes, Claude Code and other agents that read that format.
 | [`daily-intake-alerts`](skills/daily-intake-alerts/SKILL.md) | Open, update and resolve entries in Important |
 | [`daily-intake-notes`](skills/daily-intake-notes/SKILL.md) | Keep the agent's own notes in Notes |
 | [`daily-intake-gmail`](skills/daily-intake-gmail/SKILL.md) | Keep the Gmail slide up to date, and raise mail left unanswered in Important |
-| [`daily-intake-orphans-scan`](skills/daily-intake-orphans-scan/SKILL.md) | Push the orphans and container-scan slides, and raise orphans left unfixed in Important |
+| [`daily-intake-scan`](skills/daily-intake-scan/SKILL.md) | Push the daily container-scan result, and raise serious container problems in Important |
 | [`daily-intake-stock-swings`](skills/daily-intake-stock-swings/SKILL.md) | Raise unusual moves on watchlist stocks in Important, with the reason |
 | [`daily-intake-watchlist`](skills/daily-intake-watchlist/SKILL.md) | Show or change the stock watchlist |
 | [`daily-intake-daily-message`](skills/daily-intake-daily-message/SKILL.md) | Write the daily message |

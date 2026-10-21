@@ -6,10 +6,28 @@ export interface DailyTime {
   minute: number;
 }
 
-export type JobTrigger = { everyMs: number } | { dailyAt: DailyTime };
+/** A local weekday and time in DASHBOARD_TIME_ZONE. `weekday` counts like Date#getDay: 0 = Sunday … 6 = Saturday. */
+export interface WeeklyTime extends DailyTime {
+  weekday: number;
+}
+
+export type JobTrigger = { everyMs: number } | { dailyAt: DailyTime } | { weeklyAt: WeeklyTime };
+
+/** The triggers tied to the local clock (everything but everyMs). */
+export type ClockTrigger = Exclude<JobTrigger, { everyMs: number }>;
 
 /** Shortest interval a job may use, so a typo can't turn into a hot loop. */
 export const MIN_INTERVAL_MS = 1_000;
+
+const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function clockLabel({ hour, minute }: DailyTime): string {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function isTimeOfDay({ hour, minute }: DailyTime): boolean {
+  return Number.isInteger(hour) && hour >= 0 && hour <= 23 && Number.isInteger(minute) && minute >= 0 && minute <= 59;
+}
 
 export function describeTrigger(trigger: JobTrigger): string {
   if ("everyMs" in trigger) {
@@ -18,11 +36,11 @@ export function describeTrigger(trigger: JobTrigger): string {
     if (ms % 60_000 === 0) return `every ${ms / 60_000}m`;
     return `every ${ms / 1000}s`;
   }
-  const { hour, minute } = trigger.dailyAt;
-  return `daily ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  if ("dailyAt" in trigger) return `daily ${clockLabel(trigger.dailyAt)}`;
+  return `weekly ${WEEKDAY_NAMES[trigger.weeklyAt.weekday]} ${clockLabel(trigger.weeklyAt)}`;
 }
 
-/** Throws a readable error for an interval below MIN_INTERVAL_MS or an impossible time of day. */
+/** Throws a readable error for an interval below MIN_INTERVAL_MS or an impossible weekday or time of day. */
 export function validateTrigger(trigger: JobTrigger): void {
   if ("everyMs" in trigger) {
     if (!Number.isInteger(trigger.everyMs) || trigger.everyMs < MIN_INTERVAL_MS) {
@@ -30,9 +48,13 @@ export function validateTrigger(trigger: JobTrigger): void {
     }
     return;
   }
-  const { hour, minute } = trigger.dailyAt;
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
-    throw new Error("dailyAt must be { hour: 0–23, minute: 0–59 }");
+  if ("dailyAt" in trigger) {
+    if (!isTimeOfDay(trigger.dailyAt)) throw new Error("dailyAt must be { hour: 0–23, minute: 0–59 }");
+    return;
+  }
+  const { weekday } = trigger.weeklyAt;
+  if (!isTimeOfDay(trigger.weeklyAt) || !Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+    throw new Error("weeklyAt must be { weekday: 0–6 (0 = Sunday), hour: 0–23, minute: 0–59 }");
   }
 }
 
@@ -68,6 +90,31 @@ export function nextDailyRun(after: Date, at: DailyTime, timeZone: string): Date
     date = addDays(date, 1);
   }
   throw new Error("Could not compute the next daily run");
+}
+
+/** The first local occurrence of `at` (weekday and time) strictly after `after`; DST-safe like nextDailyRun. */
+export function nextWeeklyRun(after: Date, at: WeeklyTime, timeZone: string): Date {
+  let candidate = nextDailyRun(after, at, timeZone);
+  for (let attempt = 0; attempt < 7; attempt += 1) {
+    if (new Date(wallClockMs(localDateString(candidate, timeZone), 0)).getUTCDay() === at.weekday) return candidate;
+    candidate = nextDailyRun(candidate, at, timeZone);
+  }
+  throw new Error("Could not compute the next weekly run");
+}
+
+/** The next run of a dailyAt or weeklyAt trigger strictly after `after`. */
+export function nextClockRun(after: Date, trigger: ClockTrigger, timeZone: string): Date {
+  return "dailyAt" in trigger ? nextDailyRun(after, trigger.dailyAt, timeZone) : nextWeeklyRun(after, trigger.weeklyAt, timeZone);
+}
+
+/** The latest run of a dailyAt or weeklyAt trigger at or before `at`. */
+export function previousClockRun(at: Date, trigger: ClockTrigger, timeZone: string): Date {
+  // Eight days back is longer than any clock period, so the first run found is never after `at`.
+  let run = nextClockRun(new Date(at.getTime() - 8 * 86_400_000), trigger, timeZone);
+  for (let next = nextClockRun(run, trigger, timeZone); next.getTime() <= at.getTime(); next = nextClockRun(run, trigger, timeZone)) {
+    run = next;
+  }
+  return run;
 }
 
 /**

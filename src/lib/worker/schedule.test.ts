@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { zonedTimeToUtc } from "@/lib/time/zone";
-import { describeTrigger, formatDuration, localTimeInstant, nextDailyRun, nextIntervalRun, validateTrigger } from "./schedule";
+import { describeTrigger, formatDuration, localTimeInstant, nextClockRun, nextDailyRun, nextIntervalRun, nextWeeklyRun, previousClockRun, validateTrigger } from "./schedule";
 
 const DENVER = "America/Denver";
 const at = (date: string, hhmm: string) => {
@@ -44,6 +44,32 @@ test("a wall time skipped by spring-forward runs right after the jump; a repeate
   assert.equal(nextDailyRun(first, { hour: 1, minute: 30 }, DENVER).toISOString(), "2026-11-02T08:30:00.000Z");
 });
 
+test("weekly runs land on the next local weekday and time", () => {
+  const wednesday7 = { weekday: 3, hour: 7, minute: 0 };
+  // 2026-10-21 is a Wednesday: before 07:00 → that morning (MDT, 13:00Z); after → a week later.
+  assert.equal(nextWeeklyRun(at("2026-10-21", "06:00"), wednesday7, DENVER).toISOString(), "2026-10-21T13:00:00.000Z");
+  assert.equal(nextWeeklyRun(at("2026-10-21", "15:00"), wednesday7, DENVER).toISOString(), "2026-10-28T13:00:00.000Z");
+  assert.equal(nextWeeklyRun(at("2026-10-19", "23:00"), wednesday7, DENVER).toISOString(), "2026-10-21T13:00:00.000Z");
+  // Strictly after: exactly 07:00 on a Wednesday moves to the next week.
+  assert.equal(nextWeeklyRun(at("2026-10-21", "07:00"), wednesday7, DENVER).toISOString(), "2026-10-28T13:00:00.000Z");
+  // Across fall-back (2026-11-01) the run stays at 07:00 local, now MST (14:00Z).
+  assert.equal(nextWeeklyRun(at("2026-10-29", "12:00"), wednesday7, DENVER).toISOString(), "2026-11-04T14:00:00.000Z");
+  // Sunday is 0.
+  assert.equal(nextWeeklyRun(at("2026-10-21", "12:00"), { weekday: 0, hour: 9, minute: 15 }, DENVER).toISOString(), "2026-10-25T15:15:00.000Z");
+  assert.equal(nextClockRun(at("2026-10-21", "15:00"), { weeklyAt: wednesday7 }, DENVER).toISOString(), "2026-10-28T13:00:00.000Z");
+  assert.equal(nextClockRun(at("2026-10-14", "15:00"), { dailyAt: { hour: 0, minute: 0 } }, DENVER).toISOString(), "2026-10-15T06:00:00.000Z");
+});
+
+test("the previous clock run is the latest one at or before the given instant", () => {
+  const weekly = { weeklyAt: { weekday: 3, hour: 7, minute: 0 } };
+  assert.equal(previousClockRun(at("2026-10-21", "15:00"), weekly, DENVER).toISOString(), "2026-10-21T13:00:00.000Z");
+  assert.equal(previousClockRun(at("2026-10-21", "07:00"), weekly, DENVER).toISOString(), "2026-10-21T13:00:00.000Z");
+  assert.equal(previousClockRun(at("2026-10-21", "06:59"), weekly, DENVER).toISOString(), "2026-10-14T13:00:00.000Z");
+  // Across fall-back: Monday 2026-11-02 → Wednesday 2026-10-28 07:00 MDT.
+  assert.equal(previousClockRun(at("2026-11-02", "12:00"), weekly, DENVER).toISOString(), "2026-10-28T13:00:00.000Z");
+  assert.equal(previousClockRun(at("2026-10-14", "15:00"), { dailyAt: { hour: 3, minute: 30 } }, DENVER).toISOString(), "2026-10-14T09:30:00.000Z");
+});
+
 test("interval runs keep a fixed rate and skip ticks missed while running", () => {
   const start = new Date("2026-10-14T20:00:00.000Z");
   const every = 120_000;
@@ -65,5 +91,10 @@ test("triggers are validated and described for the startup log", () => {
   assert.equal(describeTrigger({ everyMs: 3_600_000 }), "every 1h");
   assert.equal(describeTrigger({ everyMs: 1_500 }), "every 1.5s");
   assert.equal(describeTrigger({ dailyAt: { hour: 3, minute: 30 } }), "daily 03:30");
+  assert.doesNotThrow(() => validateTrigger({ weeklyAt: { weekday: 3, hour: 7, minute: 0 } }));
+  assert.throws(() => validateTrigger({ weeklyAt: { weekday: 7, hour: 7, minute: 0 } }), /weeklyAt/);
+  assert.throws(() => validateTrigger({ weeklyAt: { weekday: 1.5, hour: 7, minute: 0 } }), /weeklyAt/);
+  assert.throws(() => validateTrigger({ weeklyAt: { weekday: 3, hour: 24, minute: 0 } }), /weeklyAt/);
+  assert.equal(describeTrigger({ weeklyAt: { weekday: 3, hour: 7, minute: 0 } }), "weekly Wed 07:00");
   assert.equal(formatDuration(1234), "1.2s");
 });

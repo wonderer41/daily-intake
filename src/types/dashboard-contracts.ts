@@ -218,9 +218,18 @@ export interface GmailSnapshot {
   archivedCount: number;
 }
 
+/** Written by the worker's orphans check (src/lib/integrations/orphans), never by Hermes. */
 export interface OrphansSnapshot {
-  items: { name: string; kind: "episode" | "movie"; arr: "sonarr" | "radarr" }[];
-  counts: { sonarr: number; radarr: number };
+  /** Every top-level file or folder in orphaned_data at this check. */
+  total: number;
+  /** Longest-waiting first, at most MAX_ORPHANS of them. */
+  items: {
+    /** Raw file or folder name, exactly as listed. */
+    name: string;
+    /** Wednesday checks that listed it; 0 when only a manual refresh has seen it so far. */
+    checks: number;
+    firstSeenAt: string;
+  }[];
 }
 
 export interface ScanSnapshot {
@@ -610,10 +619,8 @@ export interface HermesStateResponse {
   gmail: { capturedAt: string; data: GmailSnapshot } | null;
   /** The newest stock quotes the dashboard fetched (the stocks slide), for the stock-swings job. */
   stocks: StocksSnapshot | null;
-  /** The newest orphans snapshot, so the weekly orphan check can compare with the previous one. */
+  /** The newest orphans check (read-only: the worker keeps the list), so Hermes can say what is stuck. */
   orphans: { capturedAt: string; data: OrphansSnapshot } | null;
-  /** SONARR_URL / RADARR_URL, for the links on orphan entries in Important. */
-  orphanLinks: { sonarrUrl: string | null; radarrUrl: string | null };
   /** This week's check-in, if written. `done` already reflects linked checklist items. */
   checkin: {
     weekOf: string;

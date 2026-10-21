@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { syncCalendarTimeline } from "@/lib/integrations/google-calendar/timeline-sync";
+import { orphansDir, readOrphansFolder } from "@/lib/integrations/orphans/folder";
+import { formatOrphansCheck, lastWeeklyCheckAt, runOrphansCheck } from "@/lib/integrations/orphans/sync";
 import { isSeerrConfigured } from "@/lib/integrations/seerr/config";
 import { syncSeerrImportant } from "@/lib/integrations/seerr/important";
 import { checkSeerrPending } from "@/lib/integrations/seerr/pending";
@@ -76,6 +78,32 @@ export const workerJobs: WorkerJob[] = [
       const important = await syncSeerrImportant(now);
       const changes = [important.opened && `+${important.opened}`, important.resolved && `${important.resolved} resolved`].filter(Boolean);
       return `${result.count} pending${result.changed ? " · changed" : ""} · ${important.waiting} in Important${changes.length ? ` (${changes.join(", ")})` : ""}`;
+    },
+  },
+  {
+    // The orphaned_data list (ORPHANS_DIR): every Wednesday, an hour after the orphan pipeline's 06:00
+    // run, plus a catch-up at start when the worker was down then. Off without ORPHANS_DIR.
+    name: "orphans-check",
+    trigger: { weeklyAt: { weekday: 3, hour: 7, minute: 0 } },
+    // Off: nothing to catch up.
+    lastRunAt: async () => (orphansDir() ? lastWeeklyCheckAt() : new Date()),
+    run: async ({ now, scheduledFor, timeZone }) => {
+      const dir = orphansDir();
+      if (!dir) return "off (ORPHANS_DIR not set)";
+      return formatOrphansCheck(await runOrphansCheck({ dir, mode: "weekly", runFor: scheduledFor, now, timeZone }));
+    },
+  },
+  {
+    // Hourly look at the orphans folder. Only logs (as a failed run) when it isn't mounted or readable;
+    // the Wednesday check is what raises it in Important.
+    name: "orphans-mount",
+    trigger: { everyMs: 60 * MINUTE },
+    quiet: true,
+    run: async () => {
+      const dir = orphansDir();
+      if (!dir) return;
+      const folder = await readOrphansFolder(dir);
+      if (!folder.ok) throw new Error(folder.problem);
     },
   },
   {

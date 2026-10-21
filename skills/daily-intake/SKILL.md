@@ -25,14 +25,14 @@ This is the base for the `daily-intake-*` skills. Each of them starts with "load
 | `daily-intake-alerts` | Entries in the Important panel: problems and escalations |
 | `daily-intake-notes` | Your notes in the Notes panel |
 | `daily-intake-gmail` | The Gmail banner snapshot, and mail left unanswered in Important |
-| `daily-intake-orphans-scan` | The orphans and container-scan banner snapshots, and orphans left unfixed in Important |
+| `daily-intake-scan` | The container-scan banner snapshot, and serious container problems in Important |
 | `daily-intake-stock-swings` | Unusual moves on watchlist stocks in Important |
 | `daily-intake-watchlist` | The stocks watchlist |
 | `daily-intake-daily-message` | The daily message |
 | `daily-intake-weekly-checkin` | The weekly check-in |
 | `daily-intake-scheduling` | Calendar changes the timeline should pick up |
 
-The dashboard does some jobs itself, with no skill: it reviews pushes to the repos on cards (it sends you the commits and reads your answer), and it raises Seerr requests that waited too long in Important.
+The dashboard does some jobs itself, with no skill: it reviews pushes to the repos on cards (it sends you the commits and reads your answer), it raises Seerr requests that waited too long in Important, and it keeps the orphans list (it reads the orphan folder every Wednesday and raises orphans left there in Important). Never raise or resolve `orphans:` alerts yourself.
 
 ## Connection
 
@@ -64,7 +64,7 @@ The `daily-intake-*` skills show each request as `METHOD path` plus a body.
 - `checkin`, this week's check-in if you wrote one: `weekOf`, `summary`, `updatedAt` and `items` (`key`, `text`, `done`, `itemId`, `itemKey`).
 - The newest banner data some jobs build on, each `null` until there is one:
   - `gmail`: the last Gmail snapshot, `{ capturedAt, data }`.
-  - `orphans`: the last orphans snapshot, `{ capturedAt, data }`. `orphanLinks` holds the Sonarr and Radarr links (`sonarrUrl`, `radarrUrl`, each possibly `null`).
+  - `orphans`: the dashboard's last orphans check, `{ capturedAt, data }`, read-only. `data` is `{ total, items }`, and each item has `name` (the raw file or folder name in the orphan folder), `checks` (Wednesday checks that listed it; 0 or 1 means new) and `firstSeenAt`, longest-waiting first. Use it to answer what is stuck in the orphan folder. You can't push it: the dashboard writes it.
   - `stocks`: the latest quotes the dashboard fetched, `{ asOf, rows }`. Each row has `symbol`, `price`, `currency`, `dayChangePct` and `sixMonthChangePct`.
 
 Read the state before every batch of writes. Reuse what is already there. Never create a second card or item for something that already exists, even if it has no key.
