@@ -586,6 +586,8 @@ export interface HermesStateCard {
 }
 
 export interface HermesStateAlert {
+  /** For the [daily-intake:alert:<id>] marker on a work block booked for it. */
+  id: string;
   dedupeKey: string;
   source: string;
   title: string;

@@ -114,6 +114,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     sprints: stateSprints,
     cards: stateCards,
     alerts: alerts.map((alert) => ({
+      id: alert.id,
       dedupeKey: alert.dedupeKey,
       source: alert.source,
       title: alert.title,

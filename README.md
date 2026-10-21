@@ -251,7 +251,7 @@ in Hermes, Claude Code and other agents that read that format.
 | [`daily-intake-watchlist`](skills/daily-intake-watchlist/SKILL.md) | Show or change the stock watchlist |
 | [`daily-intake-daily-message`](skills/daily-intake-daily-message/SKILL.md) | Write the daily message |
 | [`daily-intake-weekly-checkin`](skills/daily-intake-weekly-checkin/SKILL.md) | Write the weekly check-in |
-| [`daily-intake-scheduling`](skills/daily-intake-scheduling/SKILL.md) | Tell the dashboard the calendar changed |
+| [`daily-intake-scheduling`](skills/daily-intake-scheduling/SKILL.md) | Book work blocks from chat, linked to their item or alert, and tell the dashboard the calendar changed |
 
 To install a skill, copy its folder into the agent's skills folder: `~/.hermes/skills/` for Hermes,
 `~/.claude/skills/` for Claude Code. The agent also needs `DAILY_INTAKE_URL` and

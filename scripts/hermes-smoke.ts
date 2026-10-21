@@ -212,6 +212,7 @@ async function main(): Promise<void> {
     const again = await call<HermesWriteResult<AlertDto>>("PUT", alertPath, alertBody);
     expectStatus(again, 200);
     check(again.body.created === false && JSON.stringify(again.body.data) === JSON.stringify(alert), "repeat should be a no-op");
+    check((await state()).alerts.find((a) => a.dedupeKey === alertKey)?.id === alert.id, "state alert should carry the alert's id");
   });
 
   await step("resolve alert, resolve again changes nothing", async () => {

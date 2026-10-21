@@ -30,7 +30,7 @@ This is the base for the `daily-intake-*` skills. Each of them starts with "load
 | `daily-intake-watchlist` | The stocks watchlist |
 | `daily-intake-daily-message` | The daily message |
 | `daily-intake-weekly-checkin` | The weekly check-in |
-| `daily-intake-scheduling` | Calendar changes the timeline should pick up |
+| `daily-intake-scheduling` | Booking work blocks from chat, linked to items and alerts, and calendar changes the timeline should pick up |
 
 The dashboard does some jobs itself, with no skill: it reviews pushes to the repos on cards (it sends you the commits and reads your answer), it raises Seerr requests that waited too long in Important, and it keeps the orphans list (it reads the orphan folder every Wednesday and raises orphans left there in Important). Never raise or resolve `orphans:` alerts yourself.
 
@@ -58,7 +58,7 @@ The `daily-intake-*` skills show each request as `METHOD path` plus a body.
   - Each item has `id`, `key`, `title`, `issueNumber`, `dueOn`, `done`, `doneBy`, `isCurrent`, `position`, `version` and `progress[]`.
   - `doneBy` says who checked a done item: `user` (on the page), `hermes` (you), `push` (the user confirmed a push update), or `null` when it isn't known.
   - An item's `progress[]` lists its push updates that are still pending, as `{kind, commitSha}`. The dashboard writes them after it reviews a push.
-- `alerts`, which holds the open alerts in the Important panel: `dedupeKey`, `source`, `title`, `detail`, `url`, `severity`, `openedAt`, and `dismissedAt` (set when the user dismissed it).
+- `alerts`, which holds the open alerts in the Important panel: `id`, `dedupeKey`, `source`, `title`, `detail`, `url`, `severity`, `openedAt`, and `dismissedAt` (set when the user dismissed it).
 - `notes`, which holds every note in the Notes panel, newest first, zero counts included: `id`, `author` (`user` or `hermes`), `key` (`null` on the user's notes), `text`, `detail`, `url`, `count`, `createdAt` and `updatedAt`.
 - `dailyMessage` (today's, or `null`), `recentDailyMessages` (the 60 days before today, newest first) and `watchlist` (the tickers in banner order).
 - `checkin`, this week's check-in if you wrote one: `weekOf`, `summary`, `updatedAt` and `items` (`key`, `text`, `done`, `itemId`, `itemKey`).

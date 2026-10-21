@@ -21,6 +21,10 @@ Load the `daily-intake` skill first. It has the connection, reading state, keys 
 
 Write the check-in on **Wednesday** and update it on **Friday**. From when you write it until Sunday night it is the first slide on the banner, and the user checks lines off on the page.
 
+## When it runs
+
+**Wednesday at 07:30** (write it) and **Friday at 15:00** (update it), in the dashboard's time zone (`timeZone` in the state). When the user asks for a check-in in chat, write or update it right away.
+
 ## Writing it
 
 `PUT /api/hermes/checkin/<YYYY-MM-DD>` (any day of the week; it is stored under that week's Monday)
@@ -52,3 +56,7 @@ Read `checkin` from the state first. Re-send the lines that still matter with th
 - The list you send replaces the old one; lines you leave out are removed.
 - Never mark lines done: checks belong to the user.
 - Sending the same check-in again changes nothing.
+
+## When it runs on a schedule
+
+End your reply with `[SILENT]` when the push succeeded, so nothing is delivered to the user. If the dashboard failed, say what failed in one line instead.
