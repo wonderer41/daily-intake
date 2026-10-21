@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { HttpError } from "@/lib/api/http";
 import {
-  parseCommitSha,
-  parseItemProgress,
   parseNoInput,
   parseUpsertAlert,
   parseUpsertCard,
@@ -70,28 +68,6 @@ test("alerts and empty-input routes", () => {
   parseNoInput(undefined);
   parseNoInput({});
   assert.equal(field(() => parseNoInput({ force: true })), "force");
-});
-
-test("push notes (D7): sha is 7–64 hex and lowercased, body is strict", () => {
-  assert.equal(parseCommitSha("ABCDEF1"), "abcdef1");
-  assert.equal(parseCommitSha("a".repeat(40)), "a".repeat(40));
-  assert.equal(field(() => parseCommitSha("abc12")), "sha");
-  assert.equal(field(() => parseCommitSha("g".repeat(40))), "sha");
-  assert.equal(field(() => parseCommitSha("a".repeat(65))), "sha");
-  const note = parseItemProgress({
-    repoFullName: "wonderer41/study-sessions",
-    kind: "looks_done",
-    note: " streak model + UI done ",
-    pushedAt: "2026-10-14T13:05:00-06:00",
-  });
-  assert.equal(note.note, "streak model + UI done");
-  assert.equal(note.pushedAt, "2026-10-14T19:05:00.000Z");
-  const base = { repoFullName: "o/r", kind: "partial", note: "x", pushedAt: "2026-10-14T19:05:00Z" };
-  assert.equal(field(() => parseItemProgress({ ...base, kind: "done" })), "kind");
-  assert.equal(field(() => parseItemProgress({ ...base, note: "x".repeat(501) })), "note");
-  assert.equal(field(() => parseItemProgress({ ...base, repoFullName: "study-sessions" })), "repoFullName");
-  assert.equal(field(() => parseItemProgress({ ...base, pushedAt: "yesterday" })), "pushedAt");
-  assert.equal(field(() => parseItemProgress({ ...base, status: "confirmed" })), "status");
 });
 
 test("watchlist: 1–50 tickers, uppercased, duplicates dropped", () => {

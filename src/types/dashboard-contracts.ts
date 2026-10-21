@@ -482,17 +482,6 @@ export interface HermesWriteResult<T> {
   created: boolean;
 }
 
-/**
- * PUT /api/hermes/cards/:key/items/:itemKey/progress/:sha (D7). One note per push per item,
- * upserted by (item, sha). Response: HermesWriteResult<ItemProgressDto>.
- */
-export interface HermesUpsertItemProgress {
-  repoFullName: string; // "owner/repo"
-  kind: ProgressKind;
-  note: string; // ≤ 500 characters
-  pushedAt: string; // ISO
-}
-
 /** GET and PUT /api/hermes/watchlist (D9). */
 export interface HermesWatchlist {
   symbols: string[];
@@ -611,12 +600,20 @@ export interface HermesStateResponse {
   /** Open alerts only. */
   alerts: HermesStateAlert[];
   dailyMessage: HermesDailyMessage | null;
+  /** The daily messages of the 60 days before today, newest first, so Hermes doesn't repeat itself. */
+  recentDailyMessages: HermesDailyMessage[];
   /** Stocks watchlist in banner order (D9). */
   watchlist: string[];
   /** Every note, Gerardo's and Hermes's, zero counts included, newest first. */
   notes: NoteDto[];
   /** The newest Gmail snapshot, so the Gmail job can carry Needs reply and Packages forward. */
   gmail: { capturedAt: string; data: GmailSnapshot } | null;
+  /** The newest stock quotes the dashboard fetched (the stocks slide), for the stock-swings job. */
+  stocks: StocksSnapshot | null;
+  /** The newest orphans snapshot, so the weekly orphan check can compare with the previous one. */
+  orphans: { capturedAt: string; data: OrphansSnapshot } | null;
+  /** SONARR_URL / RADARR_URL, for the links on orphan entries in Important. */
+  orphanLinks: { sonarrUrl: string | null; radarrUrl: string | null };
   /** This week's check-in, if written. `done` already reflects linked checklist items. */
   checkin: {
     weekOf: string;

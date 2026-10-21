@@ -6,7 +6,6 @@ import {
   fieldPath,
   integer,
   invalid,
-  isoDateTime,
   jsonObject,
   localDate,
   optional,
@@ -16,7 +15,7 @@ import {
   strictObject,
 } from "@/lib/api/validate";
 import { SYMBOL_PATTERN, WATCHLIST_MAX_SYMBOLS } from "@/lib/integrations/stocks/symbols";
-import type { AlertSeverity, CardStatus, ProgressKind, SprintStatus } from "@/types/dashboard-contracts";
+import type { AlertSeverity, CardStatus, SprintStatus } from "@/types/dashboard-contracts";
 import { parseRef, type RowRef } from "./keys";
 
 // Strict parsers for /api/hermes/* request bodies. Unknown fields are rejected by name.
@@ -26,7 +25,6 @@ import { parseRef, type RowRef } from "./keys";
 export const SPRINT_STATUSES: readonly SprintStatus[] = ["planned", "active", "closed"];
 export const CARD_STATUSES: readonly CardStatus[] = ["active", "paused", "done", "archived"];
 export const ALERT_SEVERITIES: readonly AlertSeverity[] = ["warning", "critical"];
-export const PROGRESS_KINDS: readonly ProgressKind[] = ["looks_done", "partial"];
 
 const MAX_POSITION = 2_000_000_000; // Postgres INTEGER, with room for appends
 const MAX_VERSION = 2_147_483_647;
@@ -168,36 +166,6 @@ export function parseUpsertAlert(body: unknown): AlertInput {
     url: optionalHttpUrl(o.url, "url"),
     severity: optional(o.severity, (v) => enumValue(v, "severity", ALERT_SEVERITIES)),
     meta: meta(o.meta),
-  };
-}
-
-export interface ProgressInput {
-  repoFullName: string;
-  kind: ProgressKind;
-  note: string;
-  /** ISO, normalized to UTC. */
-  pushedAt: string;
-}
-
-const COMMIT_SHA = /^[0-9a-f]{7,64}$/;
-
-/** The :sha path segment: 7–64 hex characters, returned lowercased. */
-export function parseCommitSha(raw: string): string {
-  const sha = raw.trim().toLowerCase();
-  if (!COMMIT_SHA.test(sha)) invalid("sha", "must be a commit SHA (7–64 hex characters; send the full 40)");
-  return sha;
-}
-
-/** PUT /api/hermes/cards/:key/items/:itemKey/progress/:sha (D7). */
-export function parseItemProgress(body: unknown): ProgressInput {
-  const o = strictObject(body, ROOT, ["repoFullName", "kind", "note", "pushedAt"]);
-  const repoFullName = requiredString(o.repoFullName, "repoFullName", 200);
-  if (!REPO_FULL_NAME.test(repoFullName)) invalid("repoFullName", 'must look like "owner/repo"');
-  return {
-    repoFullName,
-    kind: enumValue(o.kind, "kind", PROGRESS_KINDS),
-    note: requiredString(o.note, "note", 500),
-    pushedAt: isoDateTime(o.pushedAt, "pushedAt"),
   };
 }
 

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { syncCalendarTimeline } from "@/lib/integrations/google-calendar/timeline-sync";
 import { isSeerrConfigured } from "@/lib/integrations/seerr/config";
+import { syncSeerrImportant } from "@/lib/integrations/seerr/important";
 import { checkSeerrPending } from "@/lib/integrations/seerr/pending";
 import { syncStockHistory, syncStockQuotes } from "@/lib/integrations/stocks/sync";
 import { runPushReviewQueue } from "@/lib/push-review/runner";
@@ -62,16 +63,19 @@ export const workerJobs: WorkerJob[] = [
     run: async ({ now, timeZone }) => formatRetentionResult(await runRetention(prisma, now, timeZone)),
   },
   {
-    // Notes panel Seerr count. The first poll after a restart publishes too. Seerr is optional: without
-    // SEERR_URL / SEERR_API_KEY the job does nothing and logs nothing.
+    // Notes panel Seerr count (the first poll after a restart publishes too), then the Important
+    // entries for requests waiting too long. Seerr is optional: without SEERR_URL / SEERR_API_KEY the
+    // job does nothing and logs nothing.
     name: "seerr-poll",
     trigger: { everyMs: 2 * MINUTE },
     quiet: true,
-    run: async () => {
+    run: async ({ now }) => {
       if (!isSeerrConfigured()) return;
       const result = await checkSeerrPending(lastSeerrPending);
       lastSeerrPending = result.count;
-      return `${result.count} pending${result.changed ? " · changed" : ""}`;
+      const important = await syncSeerrImportant(now);
+      const changes = [important.opened && `+${important.opened}`, important.resolved && `${important.resolved} resolved`].filter(Boolean);
+      return `${result.count} pending${result.changed ? " · changed" : ""} · ${important.waiting} in Important${changes.length ? ` (${changes.join(", ")})` : ""}`;
     },
   },
   {

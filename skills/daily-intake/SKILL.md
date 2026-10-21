@@ -21,16 +21,18 @@ This is the base for the `daily-intake-*` skills. Each of them starts with "load
 
 | Skill | Job |
 |---|---|
-| `daily-intake-sprints` | Sprints, Working-on cards, checklist items and deadlines |
-| `daily-intake-push-review` | Push-progress notes on items after a push |
-| `daily-intake-gmail` | The Gmail banner snapshot |
-| `daily-intake-orphans-scan` | The orphans and container-scan banner snapshots |
-| `daily-intake-daily-message` | The daily message |
+| `daily-intake-sprints` | Sprints, Working-on cards, checklist items and deadlines, and turning a note into a card |
+| `daily-intake-alerts` | Entries in the Important panel: problems and escalations |
+| `daily-intake-notes` | Your notes in the Notes panel |
+| `daily-intake-gmail` | The Gmail banner snapshot, and mail left unanswered in Important |
+| `daily-intake-orphans-scan` | The orphans and container-scan banner snapshots, and orphans left unfixed in Important |
+| `daily-intake-stock-swings` | Unusual moves on watchlist stocks in Important |
 | `daily-intake-watchlist` | The stocks watchlist |
-| `daily-intake-alerts` | Alerts in the Broken panel |
-| `daily-intake-waiting` | Custom items in the "Waiting on you" panel |
+| `daily-intake-daily-message` | The daily message |
 | `daily-intake-weekly-checkin` | The weekly check-in |
 | `daily-intake-scheduling` | Calendar changes the timeline should pick up |
+
+The dashboard does some jobs itself, with no skill: it reviews pushes to the repos on cards (it sends you the commits and reads your answer), and it raises Seerr requests that waited too long in Important.
 
 ## Connection
 
@@ -53,12 +55,17 @@ The `daily-intake-*` skills show each request as `METHOD path` plus a body.
 - `date` and `timeZone`. `date` is today in the dashboard's time zone; use that zone for every date you send.
 - `activeSprint` and `sprints`, which hold the planned and active sprints. Each sprint has `id`, `key`, `name`, `startsOn`, `endsOn`, `status`, `daysLeft` and `version`.
 - `cards`, which holds every card that is not archived, in page order. Each card has `id`, `key`, `title`, `dueOn`, `status`, `sprintId`, `sprintKey`, `repoFullName`, `milestoneTitle`, `hermesSuggestion`, `progress {done,total}`, `current {itemId,itemKey,title,label}`, `version` and `items[]`.
-  - Each item has `id`, `key`, `title`, `issueNumber`, `dueOn`, `done`, `isCurrent`, `position`, `version` and `progress[]`.
-  - An item's `progress[]` lists the push notes that are still pending, as `{kind, commitSha}`.
-- `alerts`, which holds the open alerts (`dedupeKey`, `title`, `severity` and so on).
-- `dailyMessage` and `watchlist`.
+  - Each item has `id`, `key`, `title`, `issueNumber`, `dueOn`, `done`, `doneBy`, `isCurrent`, `position`, `version` and `progress[]`.
+  - `doneBy` says who checked a done item: `user` (on the page), `hermes` (you), `push` (the user confirmed a push update), or `null` when it isn't known.
+  - An item's `progress[]` lists its push updates that are still pending, as `{kind, commitSha}`. The dashboard writes them after it reviews a push.
+- `alerts`, which holds the open alerts in the Important panel: `dedupeKey`, `source`, `title`, `detail`, `url`, `severity`, `openedAt`, and `dismissedAt` (set when the user dismissed it).
+- `notes`, which holds every note in the Notes panel, newest first, zero counts included: `id`, `author` (`user` or `hermes`), `key` (`null` on the user's notes), `text`, `detail`, `url`, `count`, `createdAt` and `updatedAt`.
+- `dailyMessage` (today's, or `null`), `recentDailyMessages` (the 60 days before today, newest first) and `watchlist` (the tickers in banner order).
 - `checkin`, this week's check-in if you wrote one: `weekOf`, `summary`, `updatedAt` and `items` (`key`, `text`, `done`, `itemId`, `itemKey`).
-- `waiting`, which holds the custom "Waiting on you" items (`key`, `title`, `count`, `detail`, `url`, `position`), zero counts included.
+- The newest banner data some jobs build on, each `null` until there is one:
+  - `gmail`: the last Gmail snapshot, `{ capturedAt, data }`.
+  - `orphans`: the last orphans snapshot, `{ capturedAt, data }`. `orphanLinks` holds the Sonarr and Radarr links (`sonarrUrl`, `radarrUrl`, each possibly `null`).
+  - `stocks`: the latest quotes the dashboard fetched, `{ asOf, rows }`. Each row has `symbol`, `price`, `currency`, `dayChangePct` and `sixMonthChangePct`.
 
 Read the state before every batch of writes. Reuse what is already there. Never create a second card or item for something that already exists, even if it has no key.
 
@@ -78,7 +85,9 @@ Cards, items and sprints can be addressed in two ways in a path, and in a card's
 | Item for an issue | `github:issue:<owner>/<repo>#<n>` | `github:issue:example-user/study-sessions#13` |
 | Sprint | `hermes:sprint:<slug>` or `hermes:sprint:<start-date>` | `hermes:sprint:2026-10-12`, `hermes:sprint:streaks-v1` |
 | Alert | `<source>:<thing>` | `container:jellyfin`, `proxmox:vzdump:vm100` |
+| Your note | `<source>:<thing>` | `github:prs-to-review` |
 | Any page-created card, item or sprint | `id:<uuid>` | `id:5f0c2b9e-1d2a-4c3b-9f8e-7a6b5c4d3e2f` |
+| Any note (delete only) | `id:<uuid>` | `id:9b1d7c4e-2f3a-4e5b-8c6d-0a1b2c3d4e5f` |
 
 Rules for keys:
 

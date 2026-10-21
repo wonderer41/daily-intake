@@ -3,28 +3,35 @@ import { HttpError } from "@/lib/api/http";
 import { invalid } from "@/lib/api/validate";
 import { prisma } from "@/lib/db/prisma";
 import { describeRef, isUuid, refWhere, type RowRef } from "@/lib/hermes/keys";
-import type { ProgressInput } from "@/lib/hermes/parse";
 import { publishLiveEvent } from "@/lib/live/publish";
-import type { ChecklistItemDto, HermesWriteResult, ItemProgressDto } from "@/types/dashboard-contracts";
+import type { ChecklistItemDto, HermesWriteResult, ItemProgressDto, ProgressKind } from "@/types/dashboard-contracts";
 import { retryOnUniqueViolation } from "./concurrency";
 import { toItemProgressDto } from "./dto";
 import { loadItemDto } from "./items";
 
-// D7 push notes. Hermes reads each push, matches it to open checklist items and writes one note
-// per (item, commit): looks_done ("looks done from push X — confirm?") or partial (progress).
-// Hermes never checks an item; Gerardo confirms or dismisses each note on the page.
+// D7 push updates. The push-review runner shows Hermes each push, and writes one update per
+// (item, commit) from its answer: looks_done ("looks done from push X — confirm?") or partial
+// (progress). Nothing here checks an item; Gerardo confirms or dismisses each update on the page.
 //
 // Status rules:
-// - A new note is pending.
-// - Hermes re-sending the same (item, sha) with an identical payload changes nothing.
+// - A new update is pending.
+// - Writing the same (item, sha) again with an identical payload changes nothing.
 // - A different payload updates kind/note/pushedAt/repoFullName and keeps the status, except a
-//   dismissed note whose kind changed goes back to pending (Hermes changed its verdict).
+//   dismissed update whose kind changed goes back to pending (Hermes changed its verdict).
 // - Confirm: pending → confirmed; for looks_done the item is also checked (done, doneAt, version +1).
 // - Dismiss: pending → dismissed.
 // - A note that is already confirmed or dismissed is final for the page: confirming or dismissing it
 //   again returns 200 and changes nothing.
 
-/** Fields to write when Hermes re-sends the note for the same (item, sha); null when identical. */
+export interface ProgressInput {
+  repoFullName: string;
+  kind: ProgressKind;
+  note: string;
+  /** ISO, normalized to UTC. */
+  pushedAt: string;
+}
+
+/** Fields to write when the same (item, sha) is written again; null when identical. */
 export function progressChanges(
   row: Pick<ItemProgress, "kind" | "note" | "pushedAt" | "repoFullName" | "status">,
   input: ProgressInput,
@@ -49,7 +56,7 @@ interface UpsertOutcome {
   changed: boolean;
 }
 
-/** PUT /api/hermes/cards/:key/items/:itemKey/progress/:sha. The item must exist and be on that card. */
+/** Writes the push update for (item, sha) from a push review. The item must exist and be on that card. */
 export async function upsertItemProgress(
   cardRef: RowRef,
   itemRef: RowRef,

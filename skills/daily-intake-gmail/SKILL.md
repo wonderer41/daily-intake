@@ -1,6 +1,6 @@
 ---
 name: daily-intake-gmail
-description: Read the user's new Gmail and keep the Gmail slide on the Daily Intake dashboard's banner up to date - threads that need a reply, packages on the way, today's payments, and how much mail was deleted or archived. Read-only; it never changes mail. Use from the scheduled Gmail job (every 30 minutes) or when the user asks to refresh it.
+description: Read the user's new Gmail and keep the Gmail slide on the Daily Intake dashboard's banner up to date - threads that need a reply, packages on the way, today's payments, and how much mail was deleted or archived - and raise threads left unanswered for days in Important. Read-only; it never changes mail. Use from the scheduled Gmail job (8 times a day, 07:00 to 17:30) or when the user asks to refresh it.
 version: 1.0.0
 license: MIT
 required_environment_variables:
@@ -17,7 +17,7 @@ metadata:
 
 # Daily Intake: Gmail snapshot
 
-Load the `daily-intake` skill first. It has the connection, reading state, keys and status codes. This skill only adds the Gmail slide on the banner. You also need your Gmail access (for example the `google-workspace` skill), signed in to the user's mailbox.
+Load the `daily-intake` skill first. It has the connection, reading state, keys and status codes. This skill only adds the Gmail slide on the banner and the Important entries for mail left unanswered. You also need your Gmail access (for example the `google-workspace` skill), signed in to the user's mailbox.
 
 ## Ground rules
 
@@ -26,13 +26,17 @@ Load the `daily-intake` skill first. It has the connection, reading state, keys 
 - Only read mail that is new since your last run (see below). Use search results (sender, subject, snippet, date) and open a full message only when the snippet isn't enough to decide.
 - Never put amounts, body text or addresses beyond the sender's name on the dashboard.
 
+## When it runs
+
+8 times a day, every 90 minutes: **07:00, 08:30, 10:00, 11:30, 13:00, 14:30, 16:00 and 17:30** in the dashboard's time zone (`timeZone` in the state). Mail that arrives overnight shows up at the 07:00 run.
+
 ## The day window
 
 The slide counts from **05:00** in the dashboard's time zone (`timeZone` in the state): the window start `W` is today at 05:00 (yesterday at 05:00 if it is earlier than that). `since` in the snapshot is always `W`.
 
 ## Each run
 
-1. `GET /api/hermes/state`. Take `timeZone` and `gmail`, the previous snapshot: `{ capturedAt, data }`, or `null` on the first run.
+1. `GET /api/hermes/state`. Take `timeZone`, `gmail` (the previous snapshot: `{ capturedAt, data }`, or `null` on the first run) and the open `alerts` whose key starts with `gmail:thread:`.
 2. **Find the new mail:** messages that arrived after the previous `capturedAt` and were not sent by the user. On the first run (`gmail` is `null`), read the last 3 days for Needs reply and the last 14 days for Packages instead.
 3. **Sort each new message** into at most one group, and ignore everything else:
    - **Payment:** a receipt, charge or payment confirmation that arrived after `W` → `{ "merchant", "at" }`, with `at` set to the mail's time.
@@ -47,6 +51,7 @@ The slide counts from **05:00** in the dashboard's time zone (`timeZone` in the 
    - `archivedCount`: messages no longer in the inbox and not trashed, spam or sent by the user (`-in:inbox -in:trash -in:spam -from:me`).
    - Use a high result limit (for example `--max 500`). If a search hits that limit, send the limit.
 6. **Push the snapshot**, even when nothing changed. Its `capturedAt` is where the next run starts reading.
+7. **Raise or resolve the Important entries** for Needs reply (see below).
 
 ## The snapshot
 
@@ -66,6 +71,22 @@ The slide counts from **05:00** in the dashboard's time zone (`timeZone` in the 
 - Never include amounts. A payment that carries an `amount` is rejected.
 - Each list holds at most 50 entries. Unknown fields are rejected at every level.
 - Each new `capturedAt` stores a new snapshot (`201`), and the page shows the newest one. Sending the same `capturedAt` again with the same payload changes nothing (`200`); with a different payload, it replaces that capture.
+
+## Raise it in Important
+
+A Needs reply thread that has waited **4 days or more** also becomes an entry in Important, so it doesn't slip. Load the `daily-intake-alerts` skill for the alert rules.
+
+- A thread waits from its newest message, the one the user hasn't answered.
+- Open or update the entry with `PUT /api/hermes/alerts/gmail%3Athread%3A<threadId>`:
+
+```json
+{ "source": "gmail", "title": "Dana Ortiz: Saturday plans?", "detail": "Waiting 5 days for your reply",
+  "url": "https://mail.google.com/mail/u/0/#all/18c2f0a1b2c3d4e5", "severity": "warning" }
+```
+
+- `title` is the sender's name and the subject, cut to 200 characters. `url` is the thread's `threadUrl`. The mail rules above apply here too: no body text, amounts or addresses.
+- `detail` says how many whole days it has waited. Send the PUT on every run; when nothing changed it is a no-op.
+- When a thread with an open `gmail:thread:` alert is no longer on Needs reply (the user replied, archived it, or it dropped off the list), resolve it with `POST /api/hermes/alerts/gmail%3Athread%3A<threadId>/resolve`.
 
 ## When it runs on a schedule
 

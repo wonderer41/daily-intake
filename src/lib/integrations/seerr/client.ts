@@ -89,8 +89,8 @@ async function call(config: SeerrConfig, path: string, options: CallOptions = {}
 
 export type SeerrRequestFilter = "pending" | "approved" | "all";
 
-export async function listRequests(config: SeerrConfig, filter: SeerrRequestFilter, take: number): Promise<SeerrRequestPage> {
-  const params = new URLSearchParams({ filter, take: String(take), skip: "0" });
+export async function listRequests(config: SeerrConfig, filter: SeerrRequestFilter, take: number, skip = 0): Promise<SeerrRequestPage> {
+  const params = new URLSearchParams({ filter, take: String(take), skip: String(skip) });
   const { payload } = await call(config, `/request?${params.toString()}`);
   return parseSeerrRequestPage(payload);
 }

@@ -84,6 +84,11 @@ export function loadSeerrConfig(env: NodeJS.ProcessEnv = process.env): SeerrConf
   };
 }
 
+/** Days a pending request may wait before the Seerr poll raises it in Important (SEERR_IMPORTANT_AFTER_DAYS, default 5). */
+export function seerrImportantAfterDays(env: NodeJS.ProcessEnv = process.env): number {
+  return env.SEERR_IMPORTANT_AFTER_DAYS?.trim() ? integer(env, "SEERR_IMPORTANT_AFTER_DAYS", 1) : 5;
+}
+
 /** The Temp | Permanent | anime library mapping. Needed to approve; every value comes from .env. */
 export function loadSeerrLibraryMapping(env: NodeJS.ProcessEnv = process.env): SeerrLibraryMapping {
   return {

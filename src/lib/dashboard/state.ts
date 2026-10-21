@@ -1,12 +1,28 @@
-import type { Sprint } from "@/generated/prisma/client";
+import type { BannerKind, DailyMessage, Sprint } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { dashboardTimeZone, localDateString } from "@/lib/time/zone";
-import type { GmailSnapshot, HermesStateCard, HermesStateResponse, HermesStateSprint } from "@/types/dashboard-contracts";
+import { addDays, dashboardTimeZone, localDateString } from "@/lib/time/zone";
+import type {
+  GmailSnapshot,
+  HermesDailyMessage,
+  HermesStateCard,
+  HermesStateResponse,
+  HermesStateSprint,
+  OrphansSnapshot,
+  StocksSnapshot,
+} from "@/types/dashboard-contracts";
 import { parseSnapshotPayload } from "./banner-payload";
 import { currentItem, dateOnly, itemDoneBy, toDbDate, toSprintDto } from "./dto";
 import { findCheckin, toHermesCheckin, weekOf } from "./checkin";
 import { dueOnDto } from "./due";
 import { listAllNotes, toNoteDto } from "./notes";
+import { linkFromEnv } from "./today";
+
+/** Days of earlier daily messages in the state, so Hermes can avoid repeating a word or fact. */
+const RECENT_MESSAGE_DAYS = 60;
+
+function toStateMessage(row: DailyMessage): HermesDailyMessage {
+  return { date: dateOnly(row.date), text: row.text, author: row.author };
+}
 
 function toStateSprint(row: Sprint, today: string): HermesStateSprint {
   const dto = toSprintDto(row, today);
@@ -28,7 +44,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
   const timeZone = dashboardTimeZone();
   const today = localDateString(now, timeZone);
 
-  const [sprints, cards, alerts, message, watchlist, notes, checkin, gmail] = await Promise.all([
+  const [sprints, cards, alerts, message, recentMessages, watchlist, notes, checkin, gmail, stocks, orphans] = await Promise.all([
     prisma.sprint.findMany({ where: { status: { in: ["active", "planned"] } }, orderBy: [{ startsOn: "asc" }, { createdAt: "asc" }] }),
     prisma.workCard.findMany({
       where: { status: { not: "archived" } },
@@ -45,10 +61,16 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     }),
     prisma.alert.findMany({ where: { resolvedAt: null }, orderBy: { openedAt: "asc" } }),
     prisma.dailyMessage.findUnique({ where: { date: toDbDate(today) } }),
+    prisma.dailyMessage.findMany({
+      where: { date: { gte: toDbDate(addDays(today, -RECENT_MESSAGE_DAYS)), lt: toDbDate(today) } },
+      orderBy: { date: "desc" },
+    }),
     prisma.watchlistSymbol.findMany({ orderBy: [{ position: "asc" }, { symbol: "asc" }], select: { symbol: true } }),
     listAllNotes(),
     findCheckin(weekOf(today)),
-    prisma.bannerSnapshot.findFirst({ where: { kind: "gmail" }, orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }], select: { payload: true, capturedAt: true } }),
+    newestSnapshot("gmail"),
+    newestSnapshot("stocks"),
+    newestSnapshot("orphans"),
   ]);
 
   const stateSprints = sprints.map((row) => toStateSprint(row, today));
@@ -102,18 +124,27 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
       openedAt: alert.openedAt.toISOString(),
       dismissedAt: alert.dismissedAt?.toISOString() ?? null,
     })),
-    dailyMessage: message ? { date: dateOnly(message.date), text: message.text, author: message.author } : null,
+    dailyMessage: message ? toStateMessage(message) : null,
+    recentDailyMessages: recentMessages.map(toStateMessage),
     watchlist: watchlist.map((row) => row.symbol),
     notes: notes.map(toNoteDto),
     checkin: checkin ? toHermesCheckin(checkin) : null,
-    gmail: gmail ? storedGmail(gmail) : null,
+    gmail: stored<GmailSnapshot>("gmail", gmail),
+    stocks: stored<StocksSnapshot>("stocks", stocks)?.data ?? null,
+    orphans: stored<OrphansSnapshot>("orphans", orphans),
+    orphanLinks: { sonarrUrl: linkFromEnv(process.env.SONARR_URL), radarrUrl: linkFromEnv(process.env.RADARR_URL) },
   };
 }
 
-/** The stored Gmail snapshot, re-validated: an old or malformed row reads as none, so Hermes starts over. */
-function storedGmail(row: { payload: unknown; capturedAt: Date }): HermesStateResponse["gmail"] {
+function newestSnapshot(kind: BannerKind) {
+  return prisma.bannerSnapshot.findFirst({ where: { kind }, orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }], select: { payload: true, capturedAt: true } });
+}
+
+/** A stored snapshot, re-validated: an old or malformed row reads as none, so Hermes starts over. */
+function stored<T>(kind: BannerKind, row: { payload: unknown; capturedAt: Date } | null): { capturedAt: string; data: T } | null {
+  if (!row) return null;
   try {
-    return { capturedAt: row.capturedAt.toISOString(), data: parseSnapshotPayload("gmail", row.payload) as GmailSnapshot };
+    return { capturedAt: row.capturedAt.toISOString(), data: parseSnapshotPayload(kind, row.payload) as T };
   } catch {
     return null;
   }

@@ -34,8 +34,9 @@ _Screenshots coming soon._
   on the items they moved forward or seem to finish. It never checks one off for you. A checked item
   shows who checked it: you, Hermes, or a push you confirmed (linked to that commit).
 - **Important.** Things that need you, like notifications: alerts Hermes raises (a failed backup, a
-  Seerr request waiting for days, a mail left unanswered) and push updates from your repos. Critical
-  ones come first, the rest are grouped by source. Each one has a link or an action, and a Dismiss.
+  mail left unanswered for days, an unusual move on a stock you follow, an orphan nobody fixed), Seerr
+  requests waiting for days, and push updates from your repos. Critical ones come first, the rest are
+  grouped by source. Each one has a link or an action, and a Dismiss.
 - **Notes.** Small things to remember. You add, edit and delete your own; Hermes keeps its own up to
   date (for example "PRs to review · 3"). Seerr requests to approve or decline (with a Temp /
   Permanent library switch) sit at the top.
@@ -127,7 +128,9 @@ skips it too.
    list your Radarr/Sonarr servers, root folders and quality profiles, then fill in the `SEERR_MOVIE_*`,
    `SEERR_TV_*` and `SEERR_ANIME_*` values in `.env`. The same command checks them. Anime always goes
    to the anime library.
-4. Test: `npm run seerr:pending`.
+4. A request still pending after `SEERR_IMPORTANT_AFTER_DAYS` days (default 5) shows in Important,
+   linked to the title in Seerr, until it is approved or declined.
+5. Test: `npm run seerr:pending`.
 
 ### GitHub (card meta and push review)
 
@@ -217,7 +220,17 @@ in Hermes, Claude Code and other agents that read that format.
 
 | Skill | What it lets the agent do |
 |---|---|
-| [`daily-intake`](skills/daily-intake/SKILL.md) | Read the page's state and update cards, checklist items, sprints, push-progress notes, the banner snapshots (Gmail, orphans, scan), alerts, the daily message and the stock watchlist |
+| [`daily-intake`](skills/daily-intake/SKILL.md) | The base the others load first: connection, reading the page's state, keys and ids, versions and errors |
+| [`daily-intake-sprints`](skills/daily-intake-sprints/SKILL.md) | Plan sprints, cards, checklist items and deadlines, and turn a note into a card |
+| [`daily-intake-alerts`](skills/daily-intake-alerts/SKILL.md) | Open, update and resolve entries in Important |
+| [`daily-intake-notes`](skills/daily-intake-notes/SKILL.md) | Keep the agent's own notes in Notes |
+| [`daily-intake-gmail`](skills/daily-intake-gmail/SKILL.md) | Keep the Gmail slide up to date, and raise mail left unanswered in Important |
+| [`daily-intake-orphans-scan`](skills/daily-intake-orphans-scan/SKILL.md) | Push the orphans and container-scan slides, and raise orphans left unfixed in Important |
+| [`daily-intake-stock-swings`](skills/daily-intake-stock-swings/SKILL.md) | Raise unusual moves on watchlist stocks in Important, with the reason |
+| [`daily-intake-watchlist`](skills/daily-intake-watchlist/SKILL.md) | Show or change the stock watchlist |
+| [`daily-intake-daily-message`](skills/daily-intake-daily-message/SKILL.md) | Write the daily message |
+| [`daily-intake-weekly-checkin`](skills/daily-intake-weekly-checkin/SKILL.md) | Write the weekly check-in |
+| [`daily-intake-scheduling`](skills/daily-intake-scheduling/SKILL.md) | Tell the dashboard the calendar changed |
 
 To install a skill, copy its folder into the agent's skills folder: `~/.hermes/skills/` for Hermes,
 `~/.claude/skills/` for Claude Code. The agent also needs `DAILY_INTAKE_URL` and

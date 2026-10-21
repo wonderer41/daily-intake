@@ -8,8 +8,10 @@
 // snapshot is dated 2000-01-01 so it never becomes the newest one on the page.
 // It also sets the stocks watchlist to the 12 default symbols (D9); when that changed the list
 // and FINNHUB_API_KEY is set on the server, the stocks banner is refreshed.
-// The script sends 52 /api/hermes/* requests (the API allows 60 per minute, so wait a minute
-// between runs) plus a few same-origin browser requests (confirm/dismiss push notes).
+// The script sends 47 /api/hermes/* requests (the API allows 60 per minute, so wait a minute
+// between runs) plus a few same-origin browser requests (confirm/dismiss push updates). Push updates
+// have no Hermes route, so it writes those straight into the database: .env must point at the
+// server's database.
 import "dotenv/config";
 import { randomBytes, randomUUID } from "node:crypto";
 import type {
@@ -25,6 +27,8 @@ import type {
   SprintDto,
   WorkCardDto,
 } from "@/types/dashboard-contracts";
+import { upsertItemProgress, type ProgressInput } from "@/lib/dashboard/progress";
+import { prisma } from "@/lib/db/prisma";
 import { addDays, dashboardTimeZone, localDateString } from "@/lib/time/zone";
 
 const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/+$/, "");
@@ -137,8 +141,12 @@ async function main(): Promise<void> {
 
   await step("GET state", async () => {
     const body = await state();
-    check(Array.isArray(body.cards) && Array.isArray(body.alerts), "state has no cards/alerts arrays");
-    return `${body.cards.length} cards, ${body.alerts.length} open alerts, date ${body.date}`;
+    check(Array.isArray(body.cards) && Array.isArray(body.alerts) && Array.isArray(body.notes), "state has no cards/alerts/notes arrays");
+    check(Array.isArray(body.recentDailyMessages) && body.recentDailyMessages.every((m) => m.date < body.date), "state.recentDailyMessages should only hold earlier days");
+    check(body.stocks === null || Array.isArray(body.stocks.rows), "state.stocks should be null or the newest quotes");
+    check(body.orphans === null || Array.isArray(body.orphans.data.items), "state.orphans should be null or the newest snapshot");
+    check(typeof body.orphanLinks === "object" && "sonarrUrl" in body.orphanLinks && "radarrUrl" in body.orphanLinks, "state.orphanLinks is missing");
+    return `${body.cards.length} cards, ${body.alerts.length} open alerts, ${body.notes.length} notes, date ${body.date}`;
   });
 
   await step("create sprint", async () => {
@@ -327,31 +335,33 @@ async function main(): Promise<void> {
     check(JSON.stringify(malformed.body.error.details) === JSON.stringify({ field: "key" }), "details.field should be key");
   });
 
-  // ---- D7 push notes ----
+  // ---- D7 push updates ----
+  // Only the push-review runner writes them now (no Hermes route), so the smoke writes them the
+  // same way, straight into the server's database, and tests the page's confirm/dismiss routes.
   let noteA: ItemProgressDto | undefined;
   let noteB: ItemProgressDto | undefined;
-  const noteBody = { repoFullName: pushRepo, kind: "looks_done", note: "Step two looks finished in this push", pushedAt: new Date().toISOString() };
+  const noteBody: ProgressInput = { repoFullName: pushRepo, kind: "looks_done", note: "Step two looks finished in this push", pushedAt: new Date().toISOString() };
+  const writeUpdate = (index: number, sha: string, body: ProgressInput) =>
+    upsertItemProgress({ kind: "id", id: card?.id ?? "" }, { kind: "id", id: items[index].id }, sha, body);
 
-  await step("push note looks_done → 201 pending (sha lowercased)", async () => {
-    const reply = await call<HermesWriteResult<ItemProgressDto>>("PUT", `${itemPath(1)}/progress/${shaA.toUpperCase()}`, noteBody);
-    expectStatus(reply, 201);
-    noteA = reply.body.data;
-    check(reply.body.created === true && noteA.status === "pending" && noteA.commitSha === shaA, "note should be pending with the lowercased sha");
+  await step("push update looks_done (runner write) → created pending", async () => {
+    const result = await writeUpdate(1, shaA, noteBody);
+    noteA = result.data;
+    check(result.created && noteA.status === "pending" && noteA.commitSha === shaA, "update should be pending on that sha");
     check(noteA.commitUrl === `https://github.com/${pushRepo}/commit/${shaA}`, "commitUrl should link the commit");
   });
 
-  await step("repeat push note → 200 created:false", async () => {
-    const reply = await call<HermesWriteResult<ItemProgressDto>>("PUT", `${itemPath(1)}/progress/${shaA}`, noteBody);
-    expectStatus(reply, 200);
-    check(reply.body.created === false && reply.body.data.id === noteA?.id, "repeat should hit the same note");
+  await step("repeat push update → created:false", async () => {
+    const result = await writeUpdate(1, shaA, noteBody);
+    check(!result.created && result.data.id === noteA?.id, "repeat should hit the same update");
   });
 
-  await step("state and the item DTO show the pending note", async () => {
+  await step("state and the item DTO show the pending update", async () => {
     const found = (await stateCard()).items.find((item) => item.id === items[1].id);
-    check(found?.progress.some((p) => p.kind === "looks_done" && p.commitSha === shaA), "state item should list the pending note");
+    check(found?.progress.some((p) => p.kind === "looks_done" && p.commitSha === shaA), "state item should list the pending update");
     const reply = await call<HermesWriteResult<ChecklistItemDto>>("PUT", itemPath(1), itemBodies[1]);
     expectStatus(reply, 200);
-    check(reply.body.data.progress.length === 1 && reply.body.data.progress[0].id === noteA?.id, "item DTO should carry the pending note");
+    check(reply.body.data.progress.length === 1 && reply.body.data.progress[0].id === noteA?.id, "item DTO should carry the pending update");
   });
 
   await step("confirm looks_done (browser route) → item done by push, version +1", async () => {
@@ -360,40 +370,32 @@ async function main(): Promise<void> {
     check(reply.body.done && reply.body.doneAt !== null, "item should be done");
     check(reply.body.doneBy === "push" && reply.body.donePush?.commitSha === noteA?.commitSha, "doneBy should be push, linking the confirmed commit");
     check(reply.body.version === items[1].version + 1, `version should be ${items[1].version + 1}, got ${reply.body.version}`);
-    check(reply.body.progress.length === 0, "no pending notes should remain");
+    check(reply.body.progress.length === 0, "no pending updates should remain");
     const again = await call<ChecklistItemDto>("POST", `/api/items/${items[1].id}/progress/${noteA?.id}/confirm`, undefined, null);
     expectStatus(again, 200);
     check(again.body.version === reply.body.version && again.body.doneAt === reply.body.doneAt, "second confirm should change nothing");
     items[1] = reply.body;
   });
 
-  await step("partial note, dismiss (browser route) → hidden, item untouched", async () => {
-    const put = await call<HermesWriteResult<ItemProgressDto>>("PUT", `${itemPath(2)}/progress/${shaB}`, {
-      ...noteBody,
-      kind: "partial",
-      note: "Started step three; tests still missing",
-    });
-    expectStatus(put, 201);
-    noteB = put.body.data;
+  await step("partial update, dismiss (browser route) → hidden, item untouched", async () => {
+    const result = await writeUpdate(2, shaB, { ...noteBody, kind: "partial", note: "Started step three; tests still missing" });
+    check(result.created, "update should be new");
+    noteB = result.data;
     const reply = await call<ChecklistItemDto>("POST", `/api/items/${items[2].id}/progress/${noteB.id}/dismiss`, {}, null);
     expectStatus(reply, 200);
-    check(!reply.body.done && reply.body.version === items[2].version && reply.body.progress.length === 0, "dismiss should only hide the note");
+    check(!reply.body.done && reply.body.version === items[2].version && reply.body.progress.length === 0, "dismiss should only hide the update");
     const again = await call<ChecklistItemDto>("POST", `/api/items/${items[2].id}/progress/${noteB.id}/dismiss`, undefined, null);
     expectStatus(again, 200);
   });
 
-  await step("dismissed note re-sent with a new kind → pending again", async () => {
-    const reply = await call<HermesWriteResult<ItemProgressDto>>("PUT", `${itemPath(2)}/progress/${shaB}`, { ...noteBody, note: "Step three done" });
-    expectStatus(reply, 200);
-    check(reply.body.created === false && reply.body.data.kind === "looks_done" && reply.body.data.status === "pending", "note should be pending again");
+  await step("dismissed update written again with a new kind → pending again", async () => {
+    const result = await writeUpdate(2, shaB, { ...noteBody, note: "Step three done" });
+    check(!result.created && result.data.kind === "looks_done" && result.data.status === "pending", "update should be pending again");
   });
 
-  await step("note on the wrong item → 404, bad sha → 400", async () => {
+  await step("update on the wrong item → 404", async () => {
     const wrong = await call<ErrorBody>("POST", `/api/items/${items[0].id}/progress/${noteB?.id}/confirm`, undefined, null);
     expectStatus(wrong, 404);
-    const bad = await call<ErrorBody>("PUT", `${itemPath(2)}/progress/not-a-sha`, noteBody);
-    expectStatus(bad, 400);
-    check(JSON.stringify(bad.body.error.details) === JSON.stringify({ field: "sha" }), "details.field should be sha");
   });
 
   // ---- D9 watchlist ----
@@ -468,7 +470,9 @@ async function main(): Promise<void> {
   if (failures > 0) process.exitCode = 1;
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+main()
+  .catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());
