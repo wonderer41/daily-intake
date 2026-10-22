@@ -65,4 +65,6 @@ The user can dismiss an open alert on the page. The state's `alerts` show it wit
 The dashboard opens and resolves these alerts itself. Never send or resolve them:
 
 - `seerr:request:<id>`: a Seerr request that has waited too many days.
+- `orphans:entry:<id>`: a file or folder still in the orphan folder after two Wednesday checks in a row.
+- `orphans:mount`: the Wednesday check found the orphan folder not mounted or unreadable.
 - `github:push-review:<owner>/<repo>`: push reviews of that repo keep failing.

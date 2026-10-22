@@ -53,6 +53,8 @@ How to build it:
 
 Read `checkin` from the state first. Re-send the lines that still matter with the **same keys** (their checks are kept), drop what no longer matters, and add suggestions for the weekend.
 
+If `checkin` is `null` (Wednesday's was never written), write a fresh one as in "Writing it": the summary says how the week went, and the lines are what's still open plus suggestions for the weekend.
+
 - The list you send replaces the old one; lines you leave out are removed.
 - Never mark lines done: checks belong to the user.
 - Sending the same check-in again changes nothing.
