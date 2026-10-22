@@ -35,8 +35,8 @@ function countLabel(count: number, today: boolean): string {
 /**
  * The day's calendar, sitting on the painting (no glass panel), in one of four modes this device
  * remembers. Track (the default): cards on a line with the gaps above it, a dashed lilac "now" card,
- * all-day chips first; it drifts left at ~12px/s and loops, and Earlier / Later, arrow keys, touch
- * and trackpad scroll it too. Agenda: one row per event. Day bar: the whole day on one proportional
+ * all-day chips first; on today it opens at the card before "now", drifts left at ~12px/s and loops,
+ * and Earlier / Later, arrow keys, touch and trackpad scroll it too. Agenda: one row per event. Day bar: the whole day on one proportional
  * bar. Hours: a calendar-style day grid, overlapping events side by side.
  */
 export function Timeline({ timeline, now, date, calendar }: TimelineProps) {

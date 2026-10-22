@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type FocusEvent, type KeyboardEvent, type PointerEvent, type RefObject } from "react";
-import { AutoScroller } from "./motion";
+import { AutoScroller, HOLD_AFTER_INPUT_MS } from "./motion";
 
 export interface AutoScrollControls {
   /** Attach to the scroll container (its first <ol> holds the cards). */
@@ -16,7 +16,18 @@ export interface AutoScrollControls {
 }
 
 /**
- * One AutoScroller per mounted track. `resetKey` (the day shown) starts the track over from the left;
+ * Where the track opens: on today, the card just before "now" sits at the left edge, so what is on
+ * and what comes next are in view; earlier cards are an "Earlier" away. Other days open at the start.
+ */
+function startOffset(viewport: HTMLElement): number {
+  const nowCard = viewport.querySelector<HTMLElement>('[aria-current="time"]');
+  if (!nowCard) return 0;
+  const anchor = nowCard.previousElementSibling instanceof HTMLElement ? nowCard.previousElementSibling : nowCard;
+  return anchor.offsetLeft;
+}
+
+/**
+ * One AutoScroller per mounted track. `resetKey` (the day shown) starts the track over (see startOffset);
  * `active` is false while there is no track (empty day).
  */
 export function useAutoScroll(resetKey: string, active: boolean): AutoScrollControls {
@@ -26,8 +37,9 @@ export function useAutoScroll(resetKey: string, active: boolean): AutoScrollCont
   useEffect(() => {
     const element = viewportRef.current;
     if (!active || !element) return;
-    element.scrollLeft = 0;
-    const scroller = new AutoScroller(element);
+    element.scrollLeft = startOffset(element);
+    // Opened on "now": let it be read before the drift (and the loop back to the start) moves it.
+    const scroller = new AutoScroller(element, element.scrollLeft > 0 ? HOLD_AFTER_INPUT_MS : 0);
     scrollerRef.current = scroller;
     return () => {
       scroller.dispose();

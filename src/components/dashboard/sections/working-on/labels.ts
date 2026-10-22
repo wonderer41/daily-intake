@@ -1,10 +1,9 @@
 import { formatClock, localDateString } from "@/lib/time/zone";
 import type { ChecklistItemDto, SprintDto, WorkCardDto } from "@/types/dashboard-contracts";
 
-/** The card's title: the repo name (without the owner) for repo cards, else the card title. */
-export function cardDisplayTitle(card: Pick<WorkCardDto, "title" | "repoFullName">): string {
-  const repo = card.repoFullName?.split("/").pop()?.trim();
-  return repo || card.title;
+/** The repo's name without the owner ("orphan-tools"), for the tag beside a card's title; null without a repo. */
+export function repoShortName(card: Pick<WorkCardDto, "repoFullName">): string | null {
+  return card.repoFullName?.split("/").pop()?.trim() || null;
 }
 
 /** "Seed sprint · 11 days left", "… · 1 day left", "… · last day", or "no active sprint". */

@@ -118,10 +118,13 @@ async function main(): Promise<void> {
 
   for (const index of [0, 1]) {
     await step(`create card ${index + 1}`, async () => {
-      const reply = await call<WorkCardDto>("POST", "/api/cards", { title: `Smoke card ${index + 1} ${run}`, sprintId: need(sprintA, "sprint A").id, milestoneTitle: "smoke" });
+      // The second card comes with a deadline, as the page's Add card form can send one.
+      const dueOn = index === 1 ? "2030-01-15" : undefined;
+      const reply = await call<WorkCardDto>("POST", "/api/cards", { title: `Smoke card ${index + 1} ${run}`, sprintId: need(sprintA, "sprint A").id, milestoneTitle: "smoke", dueOn });
       expectStatus(reply, 201);
       cards[index] = reply.body;
       check(reply.body.createdBy === "user" && reply.body.sprintId === sprintA?.id, "createdBy should be user and sprintId sprint A");
+      check(reply.body.dueOn === (dueOn ?? null), `dueOn should be ${dueOn ?? "null"}`);
       if (index === 1) check(cards[1].position === cards[0].position + 1000, "positions should step by 1000");
       return `position ${reply.body.position}`;
     });

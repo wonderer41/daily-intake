@@ -112,6 +112,8 @@ export interface CreateCardInput {
   milestoneTitle: string | null;
   sprintId: string | null;
   position: number | undefined;
+  /** YYYY-MM-DD, or null for no deadline. */
+  dueOn: string | null;
 }
 
 function repoFullName(value: unknown): string | null | undefined {
@@ -121,13 +123,14 @@ function repoFullName(value: unknown): string | null | undefined {
 }
 
 export function parseCreateCard(body: unknown): CreateCardInput {
-  const o = strictObject(body, ROOT, ["title", "repoFullName", "milestoneTitle", "sprintId", "position"]);
+  const o = strictObject(body, ROOT, ["title", "repoFullName", "milestoneTitle", "sprintId", "position", "dueOn"]);
   return {
     title: requiredString(o.title, "title", 160),
     repoFullName: repoFullName(o.repoFullName) ?? null,
     milestoneTitle: optionalString(o.milestoneTitle, "milestoneTitle", 160) ?? null,
     sprintId: optionalUuid(o.sprintId, "sprintId") ?? null,
     position: position(o.position),
+    dueOn: o.dueOn === undefined || o.dueOn === null ? null : localDate(o.dueOn, "dueOn"),
   };
 }
 

@@ -9,7 +9,7 @@ import type { AlertDto } from "@/types/dashboard-contracts";
 import { fetchJson } from "../../api";
 import { type TodayUpdater, useDashboard } from "../../context";
 import { ScheduleBubble } from "../../schedule-bubble";
-import { cardDisplayTitle, itemName, shortSha } from "../working-on/labels";
+import { itemName, shortSha } from "../working-on/labels";
 import { confirmProgress, dropProgress } from "../working-on/optimistic";
 import { blockTag, type ImportantEntry, type ImportantGroup, requestErrorText, withoutAlert } from "./format";
 
@@ -172,7 +172,7 @@ function PushEntry({ entry, readOnly, onResolve }: PushEntryProps) {
         <CommitIcon className="mt-1 shrink-0 text-lily-pink" />
         <div className="flex min-w-0 flex-col gap-1">
           <span className="font-mono text-[12px] text-text-muted">
-            {cardDisplayTitle(card)} · {looksDone ? "looks done" : "partial"}
+            {card.title} · {looksDone ? "looks done" : "partial"}
           </span>
           <span className="font-semibold break-words text-text-strong">{name}</span>
           {update.note ? <span className="text-[13px] text-text-muted [overflow-wrap:anywhere]">{update.note}</span> : null}

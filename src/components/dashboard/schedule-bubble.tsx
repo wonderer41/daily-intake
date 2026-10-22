@@ -4,7 +4,7 @@ import { Bubble } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { cx } from "@/components/ui/cx";
 import { ChatIcon } from "@/components/ui/icons";
-import { Field, NumberInput, TimeInput } from "@/components/ui/inputs";
+import { Field, NumberInput, TimeSelect } from "@/components/ui/inputs";
 import { localDateString } from "@/lib/time/zone";
 import type { AlertDto, ChecklistItemDto, ScheduleRequestBody, ScheduleRequestDto } from "@/types/dashboard-contracts";
 import { fetchJson, isAbortError, isApiRequestError } from "./api";
@@ -80,7 +80,7 @@ export function ScheduleBubble({ target, onClose }: { target: ScheduleTarget; on
     const opener = openerRef.current;
     const pending = pendingRef;
     const controller = controllerRef;
-    rootRef.current?.querySelector<HTMLInputElement>('input[type="time"]')?.focus();
+    rootRef.current?.querySelector<HTMLSelectElement>('select[name="start"]')?.focus();
     return () => {
       controller.current?.abort();
       const id = pending.current;
@@ -273,12 +273,13 @@ export function ScheduleBubble({ target, onClose }: { target: ScheduleTarget; on
             className="flex flex-wrap items-end gap-2.5 border-t border-ink-light/20 pt-1"
           >
             <Field label="Start">
-              <TimeInput
+              <TimeSelect
                 name="start"
+                label="Start"
                 value={start}
-                aria-invalid={invalid === "start" || undefined}
-                onChange={(event) => {
-                  setStart(event.target.value);
+                invalid={invalid === "start"}
+                onChange={(next) => {
+                  setStart(next);
                   if (invalid === "start") setInvalid(null);
                 }}
               />

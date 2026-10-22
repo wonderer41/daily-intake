@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ChecklistItemDto } from "@/types/dashboard-contracts";
-import { cardDisplayTitle, countLine, dueLabel, effectiveDue, itemName, shortSha, sprintLine, timeTag } from "./labels";
+import { countLine, dueLabel, effectiveDue, itemName, repoShortName, shortSha, sprintLine, timeTag } from "./labels";
 
 const zone = "America/Denver";
 
-test("card title: repo name for repo cards, else the card title", () => {
-  assert.equal(cardDisplayTitle({ title: "Study sessions", repoFullName: "wonderer41/study-sessions" }), "study-sessions");
-  assert.equal(cardDisplayTitle({ title: "homelab-dashboard", repoFullName: null }), "homelab-dashboard");
-  assert.equal(cardDisplayTitle({ title: "Backups", repoFullName: "" }), "Backups");
+test("repo tag: the repo name without the owner, or none", () => {
+  assert.equal(repoShortName({ repoFullName: "wonderer41/study-sessions" }), "study-sessions");
+  assert.equal(repoShortName({ repoFullName: null }), null);
+  assert.equal(repoShortName({ repoFullName: "" }), null);
 });
 
 test("sprint line", () => {

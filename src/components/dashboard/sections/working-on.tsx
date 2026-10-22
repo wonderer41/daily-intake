@@ -5,8 +5,9 @@ import { SectionTitle } from "@/components/ui/typography";
 import { localDateString } from "@/lib/time/zone";
 import type { SprintDto, WorkCardDto } from "@/types/dashboard-contracts";
 import { useDashboard } from "../context";
+import { AddCardForm, AddItemForm, type AddKind, AddMenu } from "./working-on/add-menu";
 import { scheduleButtonId } from "./working-on/checklist-row";
-import { sprintLine } from "./working-on/labels";
+import { SprintSwitcher } from "./working-on/sprint-switcher";
 import { cardToggleId, WorkCard } from "./working-on/work-card";
 
 export interface WorkingOnProps {
@@ -32,6 +33,7 @@ export function WorkingOn({ activeSprint, cards }: WorkingOnProps) {
   const { date, now, timeZone } = useDashboard();
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [bubble, setBubble] = useState<OpenBubble | null>(null);
+  const [adding, setAdding] = useState<AddKind | null>(null);
   const returnFocus = useRef<OpenBubble | null>(null);
   // Past days are read-only (no booking); today and future days can be scheduled.
   const canSchedule = date >= localDateString(new Date(now), timeZone);
@@ -68,10 +70,25 @@ export function WorkingOn({ activeSprint, cards }: WorkingOnProps) {
 
   return (
     <GlassPanel aria-label="Working on" className="flex flex-col gap-[18px] max-sm:p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <SectionTitle>Working on</SectionTitle>
-        <span className="font-mono text-[12px] text-text-muted">{sprintLine(activeSprint)}</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <AddMenu onPick={setAdding} />
+          <SprintSwitcher activeSprint={activeSprint} />
+        </div>
       </div>
+      {adding === "card" ? (
+        <AddCardForm
+          activeSprint={activeSprint}
+          onDone={(createdCardId) => {
+            setAdding(null);
+            if (createdCardId) setOpenCardId(createdCardId);
+          }}
+        />
+      ) : null}
+      {adding === "item" ? (
+        <AddItemForm cards={cards} initialCardId={openCardId} onAdded={(cardId) => setOpenCardId(cardId)} onDone={() => setAdding(null)} />
+      ) : null}
       {cards.length === 0 ? (
         <p className="m-0 text-[15px] text-text-muted">No cards yet. Hermes adds one when you ask it to track something.</p>
       ) : (

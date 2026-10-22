@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
+import { GitHubMark } from "@/components/ui/github-mark";
 import { ChatIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { InnerCard } from "@/components/ui/inner-card";
 import { ProgressSegments } from "@/components/ui/progress-segments";
@@ -10,7 +11,7 @@ import { fetchJson, isAbortError, isApiRequestError } from "../../api";
 import { useDashboard, type TodayUpdater } from "../../context";
 import { ChecklistRow } from "./checklist-row";
 import { DueControl } from "./due-control";
-import { cardDisplayTitle, countLine, dueLabel, effectiveDue, issueRef } from "./labels";
+import { countLine, dueLabel, effectiveDue, issueRef, repoShortName } from "./labels";
 import { confirmProgress, dropProgress, setCardDue, setItemDone, setItemDue } from "./optimistic";
 
 /** DOM id of a card's title button (focus fallback). */
@@ -39,7 +40,10 @@ export interface WorkCardProps {
  */
 export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSchedule, onCloseBubble }: WorkCardProps) {
   const { mutate, now, timeZone } = useDashboard();
-  const title = cardDisplayTitle(card);
+  const title = card.title;
+  const repo = repoShortName(card);
+  // A title that already is the repo name gets just the mark, not the name twice.
+  const repoLabel = repo && repo.toLowerCase() !== title.trim().toLowerCase() ? repo : null;
   const listId = useId();
   const current = card.current ? card.items.find((item) => item.id === card.current?.itemId) ?? null : null;
   const numbered = card.items.some((item) => item.issueNumber !== null);
@@ -128,7 +132,12 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
   }
 
   return (
-    <InnerCard as="article" open={open} className="flex flex-col gap-3 px-5 py-[18px] max-sm:px-4">
+    <InnerCard
+      as="article"
+      open={open}
+      data-status={card.status === "active" ? undefined : card.status}
+      className="flex flex-col gap-3 px-5 py-[18px] max-sm:px-4"
+    >
       <h3 className="m-0">
         <button
           id={cardToggleId(card.id)}
@@ -138,7 +147,17 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
           onClick={onToggle}
           className="wo-toggle flex min-h-11 w-full cursor-pointer flex-wrap items-center gap-3 border-0 bg-transparent p-0 text-left"
         >
-          <span className="min-w-0 grow font-mono text-[18px] font-semibold text-text-strong [overflow-wrap:anywhere]">{title}</span>
+          <span className="flex min-w-0 grow flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="min-w-0 font-mono text-[18px] font-semibold text-text-strong [overflow-wrap:anywhere]">{title}</span>
+            {repo ? (
+              <span className="wo-repo-tag">
+                <GitHubMark size={13} />
+                {repoLabel}
+                <span className="sr-only">, repo {card.repoFullName}</span>
+              </span>
+            ) : null}
+            {card.status === "paused" || card.status === "done" ? <Chip tone="neutral">{card.status}</Chip> : null}
+          </span>
           {card.metaLine ? <span className="font-mono text-[12px] font-normal text-text-muted">{card.metaLine}</span> : null}
           <ChevronDownIcon size={18} className="wo-chevron shrink-0 text-text-strong" />
         </button>
@@ -201,7 +220,7 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
       </div>
 
       {/* Checklist: shown while open. */}
-      <div id={listId} className="wo-reveal" data-expanded={open ? "" : undefined}>
+      <div id={listId} className="wo-reveal wo-checklist" data-expanded={open ? "" : undefined}>
         <div inert={!open}>
           {canSchedule ? (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-light/20 py-2">

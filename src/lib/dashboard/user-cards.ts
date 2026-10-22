@@ -42,6 +42,7 @@ export async function createCard(input: CreateCardInput, now = new Date()): Prom
         milestoneTitle: input.milestoneTitle,
         sprintId: input.sprintId,
         position,
+        dueOn: toDueOn(input.dueOn),
         createdBy: "user",
       },
     });

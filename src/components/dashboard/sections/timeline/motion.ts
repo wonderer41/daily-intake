@@ -98,12 +98,13 @@ export class AutoScroller {
   private jump: Jump | null = null;
   private disposed = false;
 
-  constructor(element: HTMLElement) {
+  /** `holdMs`: stay put this long before drifting (the track opened on "now", not at its start). */
+  constructor(element: HTMLElement, holdMs = 0) {
     this.element = element;
     this.reducedMotion = window.matchMedia(REDUCED_MOTION);
     this.position = element.scrollLeft;
     this.written = element.scrollLeft;
-    this.waitUntil = performance.now() + EDGE_PAUSE_MS;
+    this.waitUntil = performance.now() + Math.max(EDGE_PAUSE_MS, holdMs);
     element.addEventListener("scroll", this.onScroll, { passive: true });
     document.addEventListener("visibilitychange", this.onVisibility);
     this.reducedMotion.addEventListener("change", this.onMotionPreference);

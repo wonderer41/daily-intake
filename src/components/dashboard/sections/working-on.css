@@ -38,3 +38,200 @@
 .check-row[data-checked] .wo-num {
   color: inherit;
 }
+
+/* ---------- + Add menu and its forms ---------- */
+
+.wo-add,
+.wo-sprint {
+  position: relative;
+}
+
+.wo-add__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 160px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+}
+
+.wo-add__option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wo-add__option:hover,
+.wo-add__option:focus-visible {
+  background: color-mix(in srgb, var(--lilac) 16%, transparent);
+}
+
+.wo-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.wo-add-form__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.wo-add-form__fields > .grow {
+  flex: 1 1 240px;
+}
+
+.wo-add-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.wo-add-form__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.wo-add-form__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--amber);
+}
+
+/* ---------- Sprint switcher ---------- */
+
+.wo-sprint__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.wo-sprint__button:hover {
+  color: var(--text-strong);
+}
+
+.wo-sprint__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  box-sizing: border-box;
+  width: min(320px, calc(100vw - 32px));
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-strong);
+}
+
+.wo-sprint__heading {
+  margin: 0;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--reflection);
+}
+
+.wo-sprint__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.wo-sprint__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wo-sprint__option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--ink-light) 30%, transparent);
+  background: color-mix(in srgb, var(--depth) 45%, transparent);
+  color: var(--text-strong);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wo-sprint__option[aria-pressed="true"] {
+  border-color: var(--lilac);
+  background: color-mix(in srgb, var(--lilac) 16%, transparent);
+}
+
+.wo-sprint__dates {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.wo-sprint__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The repo a card tracks, beside its title: GitHub mark + the repo's short name. */
+.wo-repo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--ink-light) 40%, transparent);
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Paused and done cards step down (the "paused" / "done" chip says why): strong text and the
+   filled progress turn muted. Muted text keeps 4.5:1, so they stay readable; the open checklist
+   keeps its normal colours. */
+.inner-card[data-status] > h3 .text-text-strong,
+.inner-card[data-status] > div:not(.wo-checklist) .text-text-strong,
+.inner-card[data-status] > div:not(.wo-checklist) .text-text {
+  color: var(--text-muted);
+}
+
+.inner-card[data-status] .progress-segments > span[data-done] {
+  background: var(--text-done);
+  border-color: var(--text-done);
+}

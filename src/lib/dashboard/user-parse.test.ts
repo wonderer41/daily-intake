@@ -55,6 +55,10 @@ test("string limits follow the VarChar sizes; null clears an optional field", ()
   assert.equal(parseUpdateCard({ version: 1, milestoneTitle: null, sprintId: null }).sprintId, null);
   assert.equal(parseUpdateCard({ version: 1 }).sprintId, undefined);
   assert.equal(field(() => parseCreateCard({ title: "x", repoFullName: "not a repo" })), "repoFullName");
+  // A new card can come with its deadline; absent or null means none.
+  assert.equal(parseCreateCard({ title: "x", dueOn: "2026-10-30" }).dueOn, "2026-10-30");
+  assert.equal(parseCreateCard({ title: "x" }).dueOn, null);
+  assert.equal(field(() => parseCreateCard({ title: "x", dueOn: "Friday" })), "dueOn");
 });
 
 test("sprints: dates are YYYY-MM-DD, end on or after start, created planned by default", () => {
