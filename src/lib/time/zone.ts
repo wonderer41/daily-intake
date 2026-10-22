@@ -12,11 +12,12 @@ export function dashboardTimeZone(env: NodeJS.ProcessEnv = process.env): string 
   return zone;
 }
 
-/** e.g. "MONDAY · OCTOBER 12" in the dashboard time zone. */
-export function formatEyebrowDate(date: Date, timeZone: string): string {
-  const weekday = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "long" }).format(date);
-  const monthDay = new Intl.DateTimeFormat("en-US", { timeZone, month: "long", day: "numeric" }).format(date);
-  return `${weekday} · ${monthDay}`.toUpperCase();
+/** The page heading's two parts in the dashboard time zone, e.g. "Monday" and "October 12". */
+export function formatDayHeading(date: Date, timeZone: string): { weekday: string; monthDay: string } {
+  return {
+    weekday: new Intl.DateTimeFormat("en-US", { timeZone, weekday: "long" }).format(date),
+    monthDay: new Intl.DateTimeFormat("en-US", { timeZone, month: "long", day: "numeric" }).format(date),
+  };
 }
 
 /** True for a real calendar date written as YYYY-MM-DD. */

@@ -170,11 +170,6 @@ lists its top level: each file or folder there, dotfiles included, is one orphan
 `SONARR_URL` and `RADARR_URL` are only browser links on the banner's orphans panel. The app never
 calls their APIs.
 
-### Jira
-
-The `JIRA_*` variables belong to code that is kept for a future "work" view. Nothing on the page uses
-them yet; leave them empty.
-
 ## Hermes
 
 Hermes and the dashboard talk in both directions. Each direction has its own secret.

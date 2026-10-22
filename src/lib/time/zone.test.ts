@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { addDays, datesSpanned, dayBounds, formatClock, formatEyebrowDate, isDateString, localDateString, zonedTimeToUtc } from "./zone";
+import { addDays, datesSpanned, dayBounds, formatClock, formatDayHeading, isDateString, localDateString, zonedTimeToUtc } from "./zone";
 
 const DENVER = "America/Denver";
 
@@ -34,7 +34,7 @@ test("local wall-clock conversions round-trip in the dashboard zone", () => {
   assert.equal(sevenPm.toISOString(), "2026-10-13T01:00:00.000Z");
   assert.equal(localDateString(sevenPm, DENVER), "2026-10-12");
   assert.equal(formatClock(sevenPm, DENVER), "19:00");
-  assert.equal(formatEyebrowDate(sevenPm, DENVER), "MONDAY · OCTOBER 12");
+  assert.deepEqual(formatDayHeading(sevenPm, DENVER), { weekday: "Monday", monthDay: "October 12" });
 });
 
 test("datesSpanned lists every local date an event touches, end exclusive", () => {

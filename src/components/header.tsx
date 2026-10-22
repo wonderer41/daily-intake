@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 import { SourceLegend } from "./source-legend";
 
 export interface HeaderProps {
-  /** e.g. "MONDAY · OCTOBER 12" for the day the page shows. */
+  /** The weekday of the day the page shows, e.g. "Monday": the page's heading. */
+  weekday: string;
+  /** The date above it, e.g. "October 12" (shown in capitals). */
   eyebrow: string;
   /** Muted live-status bits next to the date ("Reconnecting…", "Back to today"). */
   status?: ReactNode;
@@ -10,7 +12,7 @@ export interface HeaderProps {
   actions?: ReactNode;
 }
 
-export function Header({ eyebrow, status, actions }: HeaderProps) {
+export function Header({ weekday, eyebrow, status, actions }: HeaderProps) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex flex-col gap-0.5">
@@ -19,7 +21,7 @@ export function Header({ eyebrow, status, actions }: HeaderProps) {
           {status}
         </div>
         <h1 className="m-0 font-display text-[clamp(44px,6vw,72px)] leading-[0.95] font-semibold tracking-[-0.015em] text-text-strong">
-          Today
+          {weekday}
         </h1>
       </div>
       <div className="flex flex-wrap items-center gap-3">

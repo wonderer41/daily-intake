@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { Header } from "@/components/header";
 import { SkeletonPanel } from "@/components/ui/skeleton";
-import { formatEyebrowDate, localDateString, zonedTimeToUtc } from "@/lib/time/zone";
+import { formatDayHeading, localDateString, zonedTimeToUtc } from "@/lib/time/zone";
 import type { TodayResponse } from "@/types/dashboard-contracts";
 import { fetchJson } from "./api";
 import { AppearancePicker } from "./appearance-picker";
@@ -200,14 +200,15 @@ export function Dashboard({ initial, pinned }: DashboardProps) {
     [today, view, isToday, loadingDate, now, timeZone, reconnecting, refreshFailed, refresh, mutate, subscribe],
   );
 
-  const eyebrow = formatEyebrowDate(zonedTimeToUtc(view.date, 12 * 60, timeZone), timeZone);
+  const heading = formatDayHeading(zonedTimeToUtc(view.date, 12 * 60, timeZone), timeZone);
   const statusText = reconnecting ? "Reconnecting…" : refreshFailed ? "Couldn't update — retrying…" : "";
 
   return (
     <DashboardContext.Provider value={value}>
       <main className="mx-auto box-border flex max-w-[1360px] flex-col gap-7 px-[clamp(16px,4vw,48px)] pt-10 pb-14">
         <Header
-          eyebrow={eyebrow}
+          weekday={heading.weekday}
+          eyebrow={heading.monthDay}
           actions={<AppearancePicker />}
           status={
             <>

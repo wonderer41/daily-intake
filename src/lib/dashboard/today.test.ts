@@ -71,7 +71,6 @@ function card(id: string, position: number, items: CardRow["items"]): CardRow {
     milestoneTitle: null,
     dueOn: null,
     sprintId: sprint.id,
-    projectId: null,
     status: "active",
     position,
     createdBy: "user",
