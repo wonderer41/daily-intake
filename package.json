@@ -26,6 +26,7 @@
     "seerr:pending": "tsx scripts/seerr-pending.ts",
     "orphans:check": "tsx scripts/orphans-check.ts",
     "backgrounds:generate": "tsx scripts/generate-backgrounds.ts",
+    "icons:generate": "tsx scripts/generate-icons.ts",
     "db:seed": "tsx scripts/seed.ts",
     "browser:smoke": "tsx scripts/browser-smoke.ts"
   },
