@@ -9,15 +9,16 @@ Stack: Next.js 16 (App Router), React 19, TypeScript, Tailwind 4, Prisma 7 + Pos
 
 ## Screenshots
 
-<!--
-  Screenshots go in docs/screenshots/. Add the files, then remove this comment's start and end
-  lines so the images below show up.
+![The dashboard on a desktop: the banner, today's timeline, Working on and Important](docs/screenshots/desktop.png)
 
-![The dashboard on a desktop](docs/screenshots/desktop.png)
-![The dashboard on a phone](docs/screenshots/phone.png)
--->
+<p>
+  <img src="docs/screenshots/desktop-cards.png" alt="A card opened to its checklist, next to Important and Notes" height="320">
+  <img src="docs/screenshots/desktop-agenda.png" alt="The timeline in Agenda view, with the free time between events" height="320">
+  <img src="docs/screenshots/phone.png" alt="The dashboard on a phone" height="320">
+</p>
 
-_Screenshots coming soon._
+Left to right: a card opened to its checklist, with Notes · the timeline's Agenda view · the phone
+layout. The screenshots use demo data.
 
 ## What's on the page
 
