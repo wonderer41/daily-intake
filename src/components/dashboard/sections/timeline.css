@@ -164,7 +164,7 @@
 .tl-line {
   flex-grow: 1;
   height: 3px;
-  background: repeating-linear-gradient(90deg, rgba(216, 226, 220, 0.45) 0 6px, transparent 6px 12px);
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--ink-light) 45%, transparent) 0 6px, transparent 6px 12px);
 }
 
 .tl-line[data-tone] {
@@ -181,35 +181,35 @@
   min-height: 96px;
   box-sizing: border-box;
   padding: 14px 16px;
-  background: rgba(8, 18, 22, 0.55);
-  border: 1px solid rgba(216, 226, 220, 0.35);
+  background: color-mix(in srgb, var(--depth) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink-light) 35%, transparent);
   backdrop-filter: blur(12px);
 }
 
-/* Mockup tint rgba(156,143,208,.14) laid over the regular dark fill, so the muted "via hermes" keeps
+/* Mockup tint (lilac at 14%) laid over the regular dark fill, so the muted "via hermes" keeps
    4.5:1 over light parts of the painting. */
 .tl-card--work-block {
   background:
-    linear-gradient(rgba(156, 143, 208, 0.14), rgba(156, 143, 208, 0.14)),
-    rgba(8, 18, 22, 0.55);
+    linear-gradient(color-mix(in srgb, var(--lilac) 14%, transparent), color-mix(in srgb, var(--lilac) 14%, transparent)),
+    color-mix(in srgb, var(--depth) 55%, transparent);
   border-color: var(--lilac);
 }
 
 .tl-card--now {
   background: transparent;
-  border: 1px dashed rgba(156, 143, 208, 0.8);
+  border: 1px dashed color-mix(in srgb, var(--lilac) 80%, transparent);
   backdrop-filter: none;
 }
 
 /* Done: the mockup fades the whole card to 55%, but over the light patches of the painting that leaves the
    "done" word near 3:1. The surface keeps its dark fill (so text keeps its backing), the border and the
-   text step down instead: #A9B7B1 stays ≥ 4.5:1 on the card. */
+   text step down instead: text-muted stays ≥ 4.5:1 on the card. */
 .tl-card--past {
-  border-color: rgba(216, 226, 220, 0.18);
+  border-color: color-mix(in srgb, var(--ink-light) 18%, transparent);
 }
 
 .tl-card--past.tl-card--work-block {
-  border-color: rgba(156, 143, 208, 0.5);
+  border-color: color-mix(in srgb, var(--lilac) 50%, transparent);
 }
 
 .tl-card--past .tl-time,
@@ -265,7 +265,7 @@
 /* A past day's all-day chips step down like done cards (no opacity: the text keeps its contrast). */
 .tl-item--done .tl-chip {
   color: var(--text-muted);
-  border-color: rgba(216, 226, 220, 0.3);
+  border-color: color-mix(in srgb, var(--ink-light) 30%, transparent);
 }
 
 .tl-all-day__label {
@@ -297,7 +297,7 @@
   box-sizing: border-box;
   overflow: hidden;
   text-overflow: ellipsis;
-  background: rgba(8, 18, 22, 0.55);
+  background: color-mix(in srgb, var(--depth) 55%, transparent);
   backdrop-filter: blur(12px);
 }
 
@@ -322,7 +322,390 @@
 .tl-source-down,
 .tl-card--now {
   text-shadow:
-    0 0 2px rgba(8, 18, 22, 0.95),
-    0 0 6px rgba(8, 18, 22, 0.85),
-    0 0 12px rgba(8, 18, 22, 0.6);
+    0 0 2px color-mix(in srgb, var(--depth) 95%, transparent),
+    0 0 6px color-mix(in srgb, var(--depth) 85%, transparent),
+    0 0 12px color-mix(in srgb, var(--depth) 60%, transparent);
+}
+
+/* ---------- All-day row (agenda, day bar, hours) ---------- */
+
+.tl-all-day-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.tl-all-day-row__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/* ---------- Agenda ---------- */
+
+.tl-agenda {
+  max-width: 860px;
+}
+
+.tl-agenda__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tl-agenda__row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 16px;
+  min-height: 48px;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--depth) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink-light) 35%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.tl-agenda__row + .tl-agenda__row {
+  border-top: 0;
+}
+
+.tl-agenda__row--work-block {
+  background:
+    linear-gradient(color-mix(in srgb, var(--lilac) 14%, transparent), color-mix(in srgb, var(--lilac) 14%, transparent)),
+    color-mix(in srgb, var(--depth) 55%, transparent);
+  border-left: 3px solid var(--lilac);
+}
+
+.tl-agenda__row--past .tl-agenda__time,
+.tl-agenda__row--past .tl-agenda__title {
+  color: var(--text-muted);
+}
+
+.tl-agenda__row--now {
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--lilac) 80%, transparent);
+  backdrop-filter: none;
+}
+
+.tl-agenda__time {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+.tl-agenda__title {
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.tl-agenda__gap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding-left: 16px;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tl-tone, var(--text-muted));
+}
+
+.tl-agenda__gap-line {
+  width: 3px;
+  align-self: stretch;
+  background: var(--tl-tone);
+}
+
+/* ---------- Day bar ---------- */
+
+.tl-daybar__frame {
+  position: relative;
+  padding: 26px 0 30px; /* hour labels above, gap stretches below */
+}
+
+.tl-daybar__scale {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tl-daybar__hour {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* A hairline down from each hour label through the bar. */
+.tl-daybar__hour::after {
+  content: "";
+  position: absolute;
+  top: 20px;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: color-mix(in srgb, var(--ink-light) 22%, transparent);
+}
+
+/* Narrow screens: every other hour label. */
+@media (max-width: 900px) {
+  .tl-daybar__hour:not([data-even]) {
+    color: transparent;
+    text-shadow: none;
+  }
+}
+
+.tl-daybar__bar {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tl-daybar__block {
+  container-type: inline-size;
+  position: absolute;
+  height: 46px;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--depth) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink-light) 45%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+/* Too narrow for words (a short event on a long day): just the block; hover and screen readers get the details. */
+@container (max-width: 40px) {
+  .tl-daybar__time,
+  .tl-daybar__title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.tl-daybar__block--work-block {
+  background:
+    linear-gradient(color-mix(in srgb, var(--lilac) 18%, transparent), color-mix(in srgb, var(--lilac) 18%, transparent)),
+    color-mix(in srgb, var(--depth) 70%, transparent);
+  border-color: var(--lilac);
+}
+
+.tl-daybar__block--past {
+  border-color: color-mix(in srgb, var(--ink-light) 20%, transparent);
+}
+
+.tl-daybar__block--past .tl-daybar__time,
+.tl-daybar__block--past .tl-daybar__title {
+  color: var(--text-muted);
+}
+
+.tl-daybar__time {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+.tl-daybar__title {
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tl-daybar__gaps {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26px;
+}
+
+.tl-daybar__gap {
+  position: absolute;
+  top: 0;
+  height: 3px;
+  background: var(--tl-tone);
+}
+
+.tl-daybar__gap-label {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tl-tone);
+  white-space: nowrap;
+}
+
+.tl-daybar__now {
+  position: absolute;
+  top: 18px;
+  bottom: 22px;
+  width: 0;
+  border-left: 2px dashed var(--lilac);
+}
+
+/* ---------- Hour grid ---------- */
+
+.tl-grid__frame {
+  max-height: 520px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: 8px 0;
+  background: color-mix(in srgb, var(--depth) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink-light) 35%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.tl-grid__inner {
+  position: relative;
+  margin-left: 64px;
+  margin-right: 12px;
+}
+
+.tl-grid__hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px solid color-mix(in srgb, var(--ink-light) 18%, transparent);
+}
+
+.tl-grid__hour-label {
+  position: absolute;
+  top: -8px;
+  left: -58px;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.tl-grid__events {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tl-grid__block {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--ink-light) 45%, transparent);
+  border-left-width: 3px;
+  background: color-mix(in srgb, var(--depth) 75%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.tl-grid__block--work-block {
+  background:
+    linear-gradient(color-mix(in srgb, var(--lilac) 18%, transparent), color-mix(in srgb, var(--lilac) 18%, transparent)),
+    color-mix(in srgb, var(--depth) 75%, transparent);
+  border-color: var(--lilac);
+}
+
+.tl-grid__block--past {
+  border-color: color-mix(in srgb, var(--ink-light) 22%, transparent);
+}
+
+.tl-grid__block--past .tl-grid__time,
+.tl-grid__block--past .tl-grid__title {
+  color: var(--text-muted);
+}
+
+/* Short events: time and title on one line. */
+.tl-grid__block--short {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.tl-grid__time {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+.tl-grid__title {
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tl-grid__block--short .tl-grid__title {
+  white-space: nowrap;
+}
+
+.tl-grid__now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed var(--lilac);
+  pointer-events: none;
+}
+
+.tl-grid__now-label {
+  position: absolute;
+  top: -9px;
+  left: -58px;
+  padding: 1px 4px;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--on-lilac);
+  background: var(--lilac);
+}
+
+/* Labels straight on the painting get the same halo as the track's. */
+.tl-all-day-row .tl-all-day__label,
+.tl-agenda__gap,
+.tl-daybar__hour,
+.tl-daybar__gap-label {
+  text-shadow:
+    0 0 2px color-mix(in srgb, var(--depth) 95%, transparent),
+    0 0 6px color-mix(in srgb, var(--depth) 85%, transparent),
+    0 0 12px color-mix(in srgb, var(--depth) 60%, transparent);
 }

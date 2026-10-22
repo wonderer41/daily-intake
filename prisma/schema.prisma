@@ -465,3 +465,13 @@ model OrphanEntry {
   lastSeenAt  DateTime
   updatedAt   DateTime @updatedAt
 }
+
+/// The page's look, the same on every device: one row (id 1). Values are ids from
+/// src/lib/appearance/themes.ts; an unknown value reads as the default.
+model Appearance {
+  id         Int      @id @default(1)
+  theme      String   @db.VarChar(40)
+  background String   @db.VarChar(40)
+  updatedBy  Actor    @default(user)
+  updatedAt  DateTime @updatedAt
+}

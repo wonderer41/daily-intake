@@ -6,9 +6,11 @@ export interface HeaderProps {
   eyebrow: string;
   /** Muted live-status bits next to the date ("Reconnecting…", "Back to today"). */
   status?: ReactNode;
+  /** Buttons after the source legend (the Appearance picker). */
+  actions?: ReactNode;
 }
 
-export function Header({ eyebrow, status }: HeaderProps) {
+export function Header({ eyebrow, status, actions }: HeaderProps) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex flex-col gap-0.5">
@@ -20,7 +22,10 @@ export function Header({ eyebrow, status }: HeaderProps) {
           Today
         </h1>
       </div>
-      <SourceLegend />
+      <div className="flex flex-wrap items-center gap-3">
+        <SourceLegend />
+        {actions}
+      </div>
     </header>
   );
 }

@@ -137,6 +137,7 @@ function parts(overrides: Partial<TodayParts> = {}): TodayParts {
     ],
     checkin: null,
     links: { sonarrUrl: "https://sonarr.example.com", radarrUrl: null, seerrUrl: "https://requests.example.com" },
+    appearance: { theme: "kanagawa", background: "plain" },
     ...overrides,
   };
 }
@@ -176,6 +177,7 @@ test("today: assembles banner, working-on, warnings and sources from what was re
       },
     ],
   });
+  assert.deepEqual(today.appearance, { theme: "kanagawa", background: "plain" });
   assert.deepEqual(today.banner.orphans?.data.items, [{ name: "Show S01E04", checks: 2, firstSeenAt: "2026-10-07T13:00:00.000Z" }]);
   assert.deepEqual(today.banner.orphanLinks, { sonarrUrl: "https://sonarr.example.com", radarrUrl: null });
   assert.deepEqual(today.sources.calendar, { ok: true, lastSyncAt: today.timeline.lastSyncAt, error: null });

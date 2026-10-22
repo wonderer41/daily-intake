@@ -1,4 +1,5 @@
 import type { BannerKind, DailyMessage, Sprint } from "@/generated/prisma/client";
+import { getAppearance } from "@/lib/appearance/store";
 import { prisma } from "@/lib/db/prisma";
 import { addDays, dashboardTimeZone, localDateString } from "@/lib/time/zone";
 import type {
@@ -43,7 +44,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
   const timeZone = dashboardTimeZone();
   const today = localDateString(now, timeZone);
 
-  const [sprints, cards, alerts, message, recentMessages, watchlist, notes, checkin, gmail, stocks, orphans] = await Promise.all([
+  const [sprints, cards, alerts, message, recentMessages, watchlist, notes, checkin, gmail, stocks, orphans, appearance] = await Promise.all([
     prisma.sprint.findMany({ where: { status: { in: ["active", "planned"] } }, orderBy: [{ startsOn: "asc" }, { createdAt: "asc" }] }),
     prisma.workCard.findMany({
       where: { status: { not: "archived" } },
@@ -70,6 +71,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     newestSnapshot("gmail"),
     newestSnapshot("stocks"),
     newestSnapshot("orphans"),
+    getAppearance(),
   ]);
 
   const stateSprints = sprints.map((row) => toStateSprint(row, today));
@@ -131,6 +133,7 @@ export async function getHermesState(now = new Date()): Promise<HermesStateRespo
     checkin: checkin ? toHermesCheckin(checkin) : null,
     gmail: stored<GmailSnapshot>("gmail", gmail),
     stocks: stored<StocksSnapshot>("stocks", stocks)?.data ?? null,
+    appearance,
     orphans: stored<OrphansSnapshot>("orphans", orphans),
   };
 }

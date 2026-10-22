@@ -66,6 +66,7 @@ The `daily-intake-*` skills show each request as `METHOD path` plus a body.
   - `gmail`: the last Gmail snapshot, `{ capturedAt, data }`.
   - `orphans`: the dashboard's last orphans check, `{ capturedAt, data }`, read-only. `data` is `{ total, items }`, and each item has `name` (the raw file or folder name in the orphan folder), `checks` (Wednesday checks that listed it; 0 or 1 means new) and `firstSeenAt`, longest-waiting first. Use it to answer what is stuck in the orphan folder. You can't push it: the dashboard writes it.
   - `stocks`: the latest quotes the dashboard fetched, `{ asOf, rows }`. Each row has `symbol`, `price`, `currency`, `dayChangePct` and `sixMonthChangePct`.
+- `appearance`: the page's look, `{ theme, background }`, the same on every device (see "Changing the look" below).
 
 Read the state before every batch of writes. Reuse what is already there. Never create a second card or item for something that already exists, even if it has no key.
 
@@ -114,6 +115,19 @@ Body conventions:
 - If you send `null` (or `""` for text), the field is cleared.
 - Unknown fields are rejected with `400`.
 - The required fields have to be sent on every `PUT`, even when nothing else changes: `title` for cards and items, and `name`, `startsOn` and `endsOn` for sprints. Send the current value if you don't mean to change it.
+
+## Changing the look
+
+When the user asks you to change how the dashboard looks, `PUT /api/hermes/appearance` with `theme`, `background`, or both:
+
+```json
+{ "theme": "tokyo-night", "background": "plain" }
+```
+
+- `theme` is one of `water-lilies` (the default), `kanagawa`, `gruvbox`, `rose-pine` or `tokyo-night`.
+- `background` is one of the paintings, `water-lilies`, `kanagawa`, `gruvbox`, `rose-pine` or `tokyo-night` (each made in that theme's colours, but any one works with any theme), or `plain` (the theme's own ground colour).
+- Every open screen switches right away. Sending the current look again changes nothing (`"changed": false`).
+- Only change it when the user asks.
 
 ## Status codes
 

@@ -1,35 +1,12 @@
 @import "tailwindcss";
 
-/* Design tokens. Copy exactly; no framework rounding. */
 :root {
   color-scheme: dark;
-
-  --pond: #0e1a1f;
-  --deep-water: #1f4e5a;
-  --lily-pad: #4f7a4b;
-  --lilac: #9c8fd0;
-  --lilac-text: #c9c0f0;
-  --lily-pink: #e59ab5;
-  --reflection: #e8c77a;
-  --ink-light: #d8e2dc;
-  --text-strong: #f1f4ef;
-  --text: #d5ddd8;
-  --text-muted: #a9b7b1;
-  --text-done: #7e8c87;
-  --green: #8cc79a;
-  --amber: #f0b35a;
-  --stock-up: #4cd787;
-  --stock-down: #ff7a7a;
-  --on-lilac: #120e22;
-
-  --source-github: #f1f4ef;
-  --source-hermes: #e59ab5;
-  --source-gmail: #9c8fd0;
-  --source-seerr: #e8c77a;
-  --source-pipeline: #8cc79a;
-
   --ease-out-soft: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
+
+/* The colour tokens (--pond, --lilac, …) are set per theme by appearanceCss() in
+   src/lib/appearance/themes.ts, injected by the root layout and keyed by <html data-theme>. */
 
 @theme inline {
   --color-pond: var(--pond);
@@ -49,6 +26,9 @@
   --color-stock-up: var(--stock-up);
   --color-stock-down: var(--stock-down);
   --color-on-lilac: var(--on-lilac);
+  --color-depth: var(--depth);
+  --color-surface: var(--surface);
+  --color-shadow: var(--shadow);
 
   --color-source-github: var(--source-github);
   --color-source-hermes: var(--source-hermes);
@@ -78,18 +58,13 @@ body {
   text-rendering: geometricPrecision;
 }
 
-/* Full-viewport painting behind all content. */
+/* Full-viewport painting behind all content. The image comes from the chosen background
+   (<html data-background>, see appearanceCss); "plain" leaves just the theme's ground. */
 .page-background {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: var(--pond) url("/backgrounds/background-palette-knife-2560.webp") center / cover no-repeat;
-}
-
-@media (orientation: portrait) {
-  .page-background {
-    background-image: url("/backgrounds/background-palette-knife-portrait-1200.webp");
-  }
+  background: var(--pond) center / cover no-repeat;
 }
 
 :focus-visible {
@@ -112,37 +87,37 @@ body {
    Surfaces, hard shadows and bubble tails that utilities can't express cleanly. */
 @layer components {
   .glass-panel {
-    background: rgba(14, 26, 31, 0.5);
+    background: color-mix(in srgb, var(--pond) 50%, transparent);
     backdrop-filter: blur(20px) saturate(150%);
     border: 1px solid var(--ink-light);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.45),
-      0 30px 60px rgba(4, 10, 12, 0.5);
+      0 30px 60px color-mix(in srgb, var(--shadow) 50%, transparent);
   }
 
   .glass-panel--broken {
-    background: rgba(240, 179, 90, 0.12);
+    background: color-mix(in srgb, var(--amber) 12%, transparent);
     border-color: var(--amber);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.3),
-      0 30px 60px rgba(4, 10, 12, 0.5);
+      0 30px 60px color-mix(in srgb, var(--shadow) 50%, transparent);
   }
 
   .inner-card {
-    background: rgba(8, 18, 22, 0.35);
-    border: 1px solid rgba(216, 226, 220, 0.35);
+    background: color-mix(in srgb, var(--depth) 35%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ink-light) 35%, transparent);
     transition:
       background 0.3s ease,
       border-color 0.3s ease;
   }
 
   .inner-card[data-accent] {
-    background: rgba(8, 18, 22, 0.42);
+    background: color-mix(in srgb, var(--depth) 42%, transparent);
     border-left: 3px solid var(--card-accent);
   }
 
   .inner-card[data-open] {
-    background: rgba(8, 18, 22, 0.62);
+    background: color-mix(in srgb, var(--depth) 62%, transparent);
     border-color: var(--ink-light);
   }
 
@@ -174,15 +149,15 @@ body {
   }
 
   .btn--secondary {
-    background: rgba(14, 26, 31, 0.85);
+    background: color-mix(in srgb, var(--pond) 85%, transparent);
     color: var(--text-strong);
-    box-shadow: 4px 4px 0 rgba(216, 226, 220, 0.55);
+    box-shadow: 4px 4px 0 color-mix(in srgb, var(--ink-light) 55%, transparent);
   }
 
   .btn--alert {
     padding: 0 14px;
     font-size: 13px;
-    background: rgba(14, 26, 31, 0.85);
+    background: color-mix(in srgb, var(--pond) 85%, transparent);
     color: var(--amber);
     border-color: var(--amber);
     box-shadow: 3px 3px 0 var(--amber);
@@ -193,16 +168,16 @@ body {
     font-size: 13px;
     background: transparent;
     color: var(--lilac-text);
-    border-color: rgba(216, 226, 220, 0.5);
+    border-color: color-mix(in srgb, var(--ink-light) 50%, transparent);
   }
 
   .btn--icon {
     width: 44px;
     height: 44px;
     padding: 0;
-    background: rgba(14, 26, 31, 0.7);
+    background: color-mix(in srgb, var(--pond) 70%, transparent);
     color: var(--text-strong);
-    box-shadow: 3px 3px 0 rgba(216, 226, 220, 0.55);
+    box-shadow: 3px 3px 0 color-mix(in srgb, var(--ink-light) 55%, transparent);
   }
 
   .btn--sm {
@@ -215,7 +190,7 @@ body {
   }
 
   .btn--sm.btn--secondary {
-    box-shadow: 3px 3px 0 rgba(216, 226, 220, 0.55);
+    box-shadow: 3px 3px 0 color-mix(in srgb, var(--ink-light) 55%, transparent);
   }
 
   .chip {
@@ -231,7 +206,7 @@ body {
 
   .chip--in-progress {
     color: var(--lilac-text);
-    background: rgba(156, 143, 208, 0.16);
+    background: color-mix(in srgb, var(--lilac) 16%, transparent);
     border-color: var(--lilac);
   }
 
@@ -242,12 +217,12 @@ body {
 
   .chip--neutral {
     color: var(--text-muted);
-    border-color: rgba(216, 226, 220, 0.4);
+    border-color: color-mix(in srgb, var(--ink-light) 40%, transparent);
   }
 
   .chip--overdue {
     color: var(--amber);
-    background: rgba(240, 179, 90, 0.12);
+    background: color-mix(in srgb, var(--amber) 12%, transparent);
     border-color: var(--amber);
   }
 
@@ -296,7 +271,7 @@ body {
   .progress-segments > span {
     height: 10px;
     box-sizing: border-box;
-    border: 1px solid rgba(216, 226, 220, 0.4);
+    border: 1px solid color-mix(in srgb, var(--ink-light) 40%, transparent);
     transition:
       background 0.3s ease,
       border-color 0.3s ease;
@@ -351,7 +326,7 @@ body {
     min-height: 44px;
     box-sizing: border-box;
     padding: 0 10px;
-    background: rgba(8, 18, 22, 0.8);
+    background: color-mix(in srgb, var(--depth) 80%, transparent);
     border: 1px solid var(--ink-light);
     border-radius: 0;
     color: var(--text-strong);
@@ -382,16 +357,16 @@ body {
 
   .bubble--hermes {
     padding: 16px;
-    background: rgba(12, 22, 27, 0.92);
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
     border-color: var(--lilac);
-    box-shadow: 6px 6px 0 rgba(156, 143, 208, 0.45);
+    box-shadow: 6px 6px 0 color-mix(in srgb, var(--lilac) 45%, transparent);
   }
 
   .bubble--seerr {
     padding: 14px;
-    background: rgba(12, 22, 27, 0.94);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
     border-color: var(--reflection);
-    box-shadow: 6px 6px 0 rgba(232, 199, 122, 0.4);
+    box-shadow: 6px 6px 0 color-mix(in srgb, var(--reflection) 40%, transparent);
   }
 
   .bubble__tail {
@@ -399,7 +374,7 @@ body {
     top: -9px;
     width: 16px;
     height: 16px;
-    background: rgb(12, 22, 27);
+    background: var(--surface);
     border-left: 1px solid;
     border-top: 1px solid;
     transform: rotate(45deg);
@@ -416,9 +391,9 @@ body {
   .skeleton {
     background: linear-gradient(
       90deg,
-      rgba(216, 226, 220, 0.08) 0%,
-      rgba(216, 226, 220, 0.18) 50%,
-      rgba(216, 226, 220, 0.08) 100%
+      color-mix(in srgb, var(--ink-light) 8%, transparent) 0%,
+      color-mix(in srgb, var(--ink-light) 18%, transparent) 50%,
+      color-mix(in srgb, var(--ink-light) 8%, transparent) 100%
     );
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.6s linear infinite;
@@ -437,6 +412,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
     animation: none;
-    background: rgba(216, 226, 220, 0.1);
+    background: color-mix(in srgb, var(--ink-light) 10%, transparent);
   }
 }

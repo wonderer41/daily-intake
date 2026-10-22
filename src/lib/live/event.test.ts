@@ -16,6 +16,7 @@ const VALID: LiveEvent[] = [
   { type: "seerr.changed" },
   { type: "notes.changed" },
   { type: "day.rollover", date: "2026-10-15" },
+  { type: "appearance.changed" },
 ];
 
 test("every LiveEvent shape round-trips through the NOTIFY payload", () => {

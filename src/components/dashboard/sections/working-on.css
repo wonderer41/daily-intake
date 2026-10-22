@@ -29,7 +29,7 @@
   transform: rotate(180deg);
 }
 
-/* Issue numbers are pink until the item is checked, then follow the row's #7E8C87 (250ms). */
+/* Issue numbers are pink until the item is checked, then follow the row's text-done (250ms). */
 .wo-num {
   color: var(--lily-pink);
   transition: color 0.25s ease;

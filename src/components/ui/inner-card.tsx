@@ -13,14 +13,14 @@ const SOURCE_COLOR: Record<SourceName, string> = {
 
 export interface InnerCardProps extends HTMLAttributes<HTMLElement> {
   as?: "div" | "article" | "li" | "section";
-  /** Open card: darker fill (.62) and the full #D8E2DC border. */
+  /** Open card: darker fill (.62) and the full ink-light border. */
   open?: boolean;
   /** Waiting items: 3px left border in the source color, fill .42. */
   accent?: SourceName;
 }
 
 /**
- * Card inside a panel: rgba(8,18,22,.35) fill and a .35 hairline; background and border
+ * Card inside a panel: depth-tinted fill (35%) and a .35 hairline; background and border
  * transition in 300ms. Padding is the caller's (cards 18px 20px, waiting items 12px 14px).
  */
 export function InnerCard({ as: Tag = "div", open = false, accent, className, style, ...rest }: InnerCardProps) {

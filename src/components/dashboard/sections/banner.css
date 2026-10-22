@@ -89,7 +89,7 @@
     width: 10px;
     height: 10px;
     box-sizing: border-box;
-    border: 1px solid rgba(216, 226, 220, 0.7);
+    border: 1px solid color-mix(in srgb, var(--ink-light) 70%, transparent);
     background: transparent;
   }
 
@@ -279,7 +279,7 @@
     gap: 10px;
     min-width: 0;
     padding: 6px 0;
-    border-bottom: 1px solid rgba(216, 226, 220, 0.2);
+    border-bottom: 1px solid color-mix(in srgb, var(--ink-light) 20%, transparent);
   }
 
   .banner-row__text {
@@ -357,7 +357,7 @@
     gap: 10px;
     min-width: 0;
     padding: 9px 0;
-    border-bottom: 1px solid rgba(216, 226, 220, 0.2);
+    border-bottom: 1px solid color-mix(in srgb, var(--ink-light) 20%, transparent);
   }
 
   .banner-orphans__mark {
@@ -391,7 +391,7 @@
     flex-direction: column;
     gap: 10px;
     padding-left: 24px;
-    border-left: 1px solid rgba(216, 226, 220, 0.35);
+    border-left: 1px solid color-mix(in srgb, var(--ink-light) 35%, transparent);
   }
 
   /* The two columns have wrapped onto separate lines: divide them from above instead. */
@@ -399,7 +399,7 @@
     .banner-scan {
       padding-top: 18px;
       padding-left: 0;
-      border-top: 1px solid rgba(216, 226, 220, 0.35);
+      border-top: 1px solid color-mix(in srgb, var(--ink-light) 35%, transparent);
       border-left: 0;
     }
   }
@@ -448,8 +448,8 @@
     flex-wrap: wrap;
     gap: 2px 10px;
     padding: 8px 10px;
-    border: 1px solid rgba(240, 179, 90, 0.6);
-    background: rgba(240, 179, 90, 0.1);
+    border: 1px solid color-mix(in srgb, var(--amber) 60%, transparent);
+    background: color-mix(in srgb, var(--amber) 10%, transparent);
   }
 
   .banner-scan__mark {
@@ -493,7 +493,7 @@
     text-align: right;
     font-weight: 400;
     white-space: nowrap;
-    border-bottom: 1px solid rgba(216, 226, 220, 0.2);
+    border-bottom: 1px solid color-mix(in srgb, var(--ink-light) 20%, transparent);
     vertical-align: baseline;
   }
 

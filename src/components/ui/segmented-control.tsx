@@ -8,7 +8,7 @@ export interface SegmentedOption<T extends string> {
 export interface SegmentedControlProps<T extends string> {
   /** Accessible name of the group, e.g. "Library". */
   label: string;
-  options: readonly [SegmentedOption<T>, SegmentedOption<T>];
+  options: readonly SegmentedOption<T>[];
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
@@ -16,7 +16,7 @@ export interface SegmentedControlProps<T extends string> {
 }
 
 /**
- * Two buttons sharing a border (Temp | Permanent). The pressed one is #D8E2DC with pond text and
+ * Buttons sharing a border (Temp | Permanent; Track | Agenda | Day bar | Hours). The pressed one is ink-light with pond text and
  * aria-pressed="true". 36px tall as designed; the hit area is stretched to 44px in CSS.
  */
 export function SegmentedControl<T extends string>({ label, options, value, onChange, disabled, className }: SegmentedControlProps<T>) {

@@ -2,9 +2,9 @@ import type { ComponentPropsWithoutRef } from "react";
 import { cx } from "./cx";
 
 const EYEBROW_TONE = {
-  /** #A9B7B1: slide and group labels ("Daily message", "Gmail · since 08:00"). */
+  /** text-muted: slide and group labels ("Daily message", "Gmail · since 08:00"). */
   muted: "text-text-muted",
-  /** #E8C77A: the header date, the Seerr bubble heading. */
+  /** reflection: the header date, the Seerr bubble heading. */
   reflection: "text-reflection",
 } as const;
 
@@ -24,7 +24,7 @@ export interface SectionTitleProps extends ComponentPropsWithoutRef<"h2"> {
   size?: 36 | 40;
 }
 
-/** Cormorant 600, line-height 1, #F1F4EF. Section headings only. */
+/** Cormorant 600, line-height 1, text-strong. Section headings only. */
 export function SectionTitle({ as: Tag = "h2", size = 40, className, ...rest }: SectionTitleProps) {
   return (
     <Tag
@@ -36,7 +36,7 @@ export function SectionTitle({ as: Tag = "h2", size = 40, className, ...rest }: 
 
 export interface RailTitleProps extends ComponentPropsWithoutRef<"h2"> {
   as?: "h2" | "h3";
-  /** "amber" inside the Important panel; otherwise #F1F4EF. */
+  /** "amber" inside the Important panel; otherwise text-strong. */
   tone?: "strong" | "amber";
 }
 

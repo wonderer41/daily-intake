@@ -16,6 +16,7 @@ import "dotenv/config";
 import { randomBytes, randomUUID } from "node:crypto";
 import type {
   AlertDto,
+  AppearanceDto,
   ChecklistItemDto,
   HermesBannerResult,
   HermesConflictDetails,
@@ -397,6 +398,24 @@ async function main(): Promise<void> {
   await step("update on the wrong item → 404", async () => {
     const wrong = await call<ErrorBody>("POST", `/api/items/${items[0].id}/progress/${noteB?.id}/confirm`, undefined, null);
     expectStatus(wrong, 404);
+  });
+
+  // ---- Appearance ----
+  await step("PUT appearance, state shows it, repeat changes nothing, then restore", async () => {
+    const before = (await call<{ data: AppearanceDto }>("GET", "/api/hermes/appearance")).body.data;
+    const next: AppearanceDto = { theme: before.theme === "gruvbox" ? "kanagawa" : "gruvbox", background: before.background === "plain" ? "water-lilies" : "plain" };
+    const reply = await call<{ data: AppearanceDto; changed: boolean }>("PUT", "/api/hermes/appearance", next);
+    expectStatus(reply, 200);
+    check(reply.body.changed === true && JSON.stringify(reply.body.data) === JSON.stringify(next), "the new look should be saved");
+    check(JSON.stringify((await state()).appearance) === JSON.stringify(next), "state.appearance should show the new look");
+    const again = await call<{ data: AppearanceDto; changed: boolean }>("PUT", "/api/hermes/appearance", { theme: next.theme });
+    check(again.body.changed === false, "sending the current theme again should change nothing");
+    const bad = await call<ErrorBody>("PUT", "/api/hermes/appearance", { theme: "solarized" });
+    expectStatus(bad, 400);
+    check(JSON.stringify(bad.body.error.details) === JSON.stringify({ field: "theme" }), "details.field should be theme");
+    const restored = await call<{ data: AppearanceDto }>("PUT", "/api/hermes/appearance", before);
+    check(JSON.stringify(restored.body.data) === JSON.stringify(before), "the original look should be back");
+    return `${before.theme}/${before.background} → ${next.theme}/${next.background} → back`;
   });
 
   // ---- D9 watchlist ----

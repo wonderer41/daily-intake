@@ -3,6 +3,8 @@
 // All timestamps are ISO 8601 strings in UTC. All "date" fields are local dates (YYYY-MM-DD)
 // in DASHBOARD_TIME_ZONE (default America/Denver).
 
+import type { BackgroundId, ThemeId } from "@/lib/appearance/themes";
+
 export type Actor = "user" | "hermes" | "github" | "system";
 export type SprintStatus = "planned" | "active" | "closed";
 export type CardStatus = "active" | "paused" | "done" | "archived";
@@ -393,6 +395,12 @@ export interface SourceStateDto {
   error: string | null;
 }
 
+/** The page's look (src/lib/appearance/themes.ts), the same on every device. */
+export interface AppearanceDto {
+  theme: ThemeId;
+  background: BackgroundId;
+}
+
 export interface TodayResponse {
   date: string;
   timeZone: string;
@@ -404,6 +412,7 @@ export interface TodayResponse {
   warnings: { alerts: AlertDto[]; notes: NotesDto };
   /** `seerr` is null when Seerr isn't set up on the server (it is optional). */
   sources: { calendar: SourceStateDto; seerr: SourceStateDto | null };
+  appearance: AppearanceDto;
 }
 
 // ---------- Live stream (/api/stream, Server-Sent Events) ----------
@@ -419,7 +428,8 @@ export type LiveEvent =
   | { type: "schedule.updated"; scheduleId: string }
   | { type: "seerr.changed" }
   | { type: "notes.changed" }
-  | { type: "day.rollover"; date: string };
+  | { type: "day.rollover"; date: string }
+  | { type: "appearance.changed" };
 
 // ---------- Hermes write API (/api/hermes/*, bearer HERMES_DASHBOARD_TOKEN) ----------
 // Path segments for cards, items and sprints take the row's key or "id:<uuid>" (rows created on
@@ -621,6 +631,8 @@ export interface HermesStateResponse {
   gmail: { capturedAt: string; data: GmailSnapshot } | null;
   /** The newest stock quotes the dashboard fetched (the stocks slide), for the stock-swings job. */
   stocks: StocksSnapshot | null;
+  /** The page's theme and background (PUT /api/hermes/appearance changes them). */
+  appearance: AppearanceDto;
   /** The newest orphans check (read-only: the worker keeps the list), so Hermes can say what is stuck. */
   orphans: { capturedAt: string; data: OrphansSnapshot } | null;
   /** This week's check-in, if written. `done` already reflects linked checklist items. */

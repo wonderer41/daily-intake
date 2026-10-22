@@ -8,7 +8,7 @@ type NativeButtonProps = Omit<ComponentPropsWithoutRef<"button">, "type"> & {
 
 interface TextButtonProps extends NativeButtonProps {
   /**
-   * primary   lilac fill, hard 4px #D8E2DC shadow (Schedule with Hermes, Ask Hermes, Approve)
+   * primary   lilac fill, hard 4px ink-light shadow (Schedule with Hermes, Ask Hermes, Approve)
    * secondary dark fill, 4px light shadow (Decline, Not today)
    * alert     amber text and border, 3px amber shadow (Block time)
    * ghost     no fill, faint border, lilac text, no shadow (the per-item Schedule button)

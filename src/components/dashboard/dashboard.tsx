@@ -7,6 +7,7 @@ import { SkeletonPanel } from "@/components/ui/skeleton";
 import { formatEyebrowDate, localDateString, zonedTimeToUtc } from "@/lib/time/zone";
 import type { TodayResponse } from "@/types/dashboard-contracts";
 import { fetchJson } from "./api";
+import { AppearancePicker } from "./appearance-picker";
 import { DashboardContext, type DashboardContextValue, type LiveListener, type Mutate, type TodayUpdater } from "./context";
 import { Banner } from "./sections/banner";
 import { Timeline } from "./sections/timeline";
@@ -171,6 +172,13 @@ export function Dashboard({ initial, pinned }: DashboardProps) {
   }, [view.date, view.pinned, timeZone]);
 
   const today = useMemo(() => layers.reduce((data, layer) => layer.update(data), server), [layers, server]);
+
+  // The look lives on <html> (the root layout renders the saved one); follow picks and live changes.
+  const { theme, background } = today.appearance;
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.background = background;
+  }, [theme, background]);
   const isToday = view.date === localDateString(new Date(now), timeZone);
   const loadingDate = view.date !== server.date;
 
@@ -200,6 +208,7 @@ export function Dashboard({ initial, pinned }: DashboardProps) {
       <main className="mx-auto box-border flex max-w-[1360px] flex-col gap-7 px-[clamp(16px,4vw,48px)] pt-10 pb-14">
         <Header
           eyebrow={eyebrow}
+          actions={<AppearancePicker />}
           status={
             <>
               <span role="status" className="font-mono text-[12px] leading-normal text-text-muted">

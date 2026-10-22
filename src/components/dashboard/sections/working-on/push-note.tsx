@@ -34,7 +34,7 @@ function CommitLink({ note }: { note: ItemProgressDto }) {
 export function PushNote({ note, itemName, onConfirm, onDismiss }: PushNoteProps) {
   if (note.kind === "looks_done") {
     return (
-      <div className="mb-3 ml-8 flex flex-wrap items-center gap-x-3 gap-y-2 border border-[rgba(229,154,181,0.45)] bg-[rgba(229,154,181,0.06)] px-3 py-2 max-sm:ml-0">
+      <div className="mb-3 ml-8 flex flex-wrap items-center gap-x-3 gap-y-2 border border-lily-pink/45 bg-lily-pink/6 px-3 py-2 max-sm:ml-0">
         <div className="flex min-w-0 flex-[1_1_200px] items-start gap-2.5">
           <CommitIcon className="mt-0.5 shrink-0 text-lily-pink" />
           <div className="flex min-w-0 flex-col gap-0.5">

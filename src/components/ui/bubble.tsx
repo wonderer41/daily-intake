@@ -3,7 +3,7 @@ import { cx } from "./cx";
 import { CloseIcon } from "./icons";
 
 export interface BubbleProps {
-  /** hermes = lilac border + lilac hard shadow; seerr = #E8C77A border + gold hard shadow. */
+  /** hermes = lilac border + lilac hard shadow; seerr = reflection border + gold hard shadow. */
   tone: "hermes" | "seerr";
   /** Accessible name of the group, e.g. "Schedule with Hermes" or "Seerr requests". */
   label: string;

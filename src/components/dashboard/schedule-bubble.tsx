@@ -241,7 +241,7 @@ export function ScheduleBubble({ target, onClose }: { target: ScheduleTarget; on
                   "m-0 max-w-[86%] px-3 py-2.5 text-[15px] leading-[1.4] text-pretty",
                   message.who === "me"
                     ? "bg-lilac text-on-lilac"
-                    : "border border-[rgba(229,154,181,0.55)] bg-[rgba(229,154,181,0.1)] text-text-strong",
+                    : "border border-lily-pink/55 bg-lily-pink/10 text-text-strong",
                 )}
               >
                 {message.who === "me" ? <span className="sr-only">You: </span> : <span className="sr-only">Hermes: </span>}
@@ -259,7 +259,7 @@ export function ScheduleBubble({ target, onClose }: { target: ScheduleTarget; on
               setStart(suggestion);
               setInvalid(null);
             }}
-            className="min-h-11 cursor-pointer self-start border border-dashed border-lilac bg-[rgba(156,143,208,0.1)] px-3.5 text-[14px] text-lilac-text"
+            className="min-h-11 cursor-pointer self-start border border-dashed border-lilac bg-lilac/10 px-3.5 text-[14px] text-lilac-text"
           >
             Use {suggestion}
           </button>
@@ -270,7 +270,7 @@ export function ScheduleBubble({ target, onClose }: { target: ScheduleTarget; on
             ref={formRef}
             noValidate
             onSubmit={(event) => void ask(event)}
-            className="flex flex-wrap items-end gap-2.5 border-t border-[rgba(216,226,220,0.2)] pt-1"
+            className="flex flex-wrap items-end gap-2.5 border-t border-ink-light/20 pt-1"
           >
             <Field label="Start">
               <TimeInput

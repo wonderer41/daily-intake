@@ -18,6 +18,7 @@ const LIVE_EVENT_TYPES: Record<LiveEvent["type"], true> = {
   "seerr.changed": true,
   "notes.changed": true,
   "day.rollover": true,
+  "appearance.changed": true,
 };
 
 const BANNER_KINDS = new Set(["gmail", "orphans", "scan", "stocks", "dailyMessage", "checkin"]);
@@ -62,6 +63,7 @@ export function toLiveEvent(value: unknown): LiveEvent | null {
       return isId(value.scheduleId) ? { type, scheduleId: value.scheduleId } : null;
     case "seerr.changed":
     case "notes.changed":
+    case "appearance.changed":
       return { type };
   }
 }

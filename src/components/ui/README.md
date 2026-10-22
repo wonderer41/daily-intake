@@ -11,7 +11,7 @@ file directly (no barrel), e.g. `import { Button } from "@/components/ui/button"
 | `ui/inner-card` | `InnerCard`, `SourceName` | Card inside a panel. `open` (fill .62, full border), `accent="seerr"` etc. (3px left border, fill .42). |
 | `ui/button` | `Button` | `variant="primary" \| "secondary" \| "alert" \| "ghost" \| "icon"`, `size="sm"` (13px, 3px shadow). Icon buttons require `aria-label`. `type` defaults to `"button"`. |
 | `ui/chip` | `Chip` | `tone="in-progress"` (also booked time tags) `\| "open" \| "neutral"`. |
-| `ui/segmented-control` | `SegmentedControl` | Two options, `aria-pressed`, `label` names the group. 36px look, 44px hit area. |
+| `ui/segmented-control` | `SegmentedControl` | Two or more options, `aria-pressed`, `label` names the group. 36px look, 44px hit area. |
 | `ui/typography` | `Eyebrow`, `SectionTitle`, `RailTitle` | Mono .16em eyebrow (`tone="muted" \| "reflection"`); Cormorant 40/36px (`size`); rail 30px (`tone="amber"` in Important). |
 | `ui/progress-segments` | `ProgressSegments` | `segments: boolean[]` in checklist order, `label` required (role progressbar). |
 | `ui/checkbox` | `CheckboxRow` | Native checkbox; the row is the label (48px). `checked` + `onCheckedChange`. Checked rows go #7E8C87; children inherit `currentColor`. |

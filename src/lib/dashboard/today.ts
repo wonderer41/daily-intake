@@ -1,11 +1,12 @@
 import type { BannerKind, DailyMessage, Note, Prisma, Sprint } from "@/generated/prisma/client";
 import { HttpError } from "@/lib/api/http";
+import { getAppearance } from "@/lib/appearance/store";
 import { prisma } from "@/lib/db/prisma";
 import { listRequests } from "@/lib/integrations/seerr/client";
 import { isSeerrConfigured, loadSeerrConfig } from "@/lib/integrations/seerr/config";
 import { dashboardTimeZone, localDateString } from "@/lib/time/zone";
 import { getTimeline } from "@/lib/timeline/query";
-import type { BannerDto, BannerPayload, SourceStateDto, TimelineResponse, TodayResponse } from "@/types/dashboard-contracts";
+import type { AppearanceDto, BannerDto, BannerPayload, SourceStateDto, TimelineResponse, TodayResponse } from "@/types/dashboard-contracts";
 import { parseSnapshotPayload } from "./banner-payload";
 import { alertInclude, type AlertRow, cardInclude, type CardRow, dateOnly, toAlertDto, toDbDate, toSprintDto, toWorkCardDto } from "./dto";
 import { type CheckinRow, findCheckin, toCheckinDto, weekOf } from "./checkin";
@@ -51,6 +52,7 @@ export interface TodayParts {
   /** The check-in for the week `date` falls in, if Hermes wrote one. */
   checkin: CheckinRow | null;
   links: { sonarrUrl: string | null; radarrUrl: string | null; seerrUrl: string | null };
+  appearance: AppearanceDto;
 }
 
 type SnapshotData<K extends BannerKind> = Extract<BannerPayload, { kind: K }>["payload"];
@@ -182,6 +184,7 @@ export function assembleToday(parts: TodayParts): TodayResponse {
       calendar: calendarSource(parts.timeline, parts.now),
       seerr: parts.seerr.source,
     },
+    appearance: parts.appearance,
   };
 }
 
@@ -204,7 +207,7 @@ async function latestSnapshots(): Promise<SnapshotRow[]> {
 
 export async function getToday(date: string, now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<TodayResponse> {
   const timeZone = dashboardTimeZone(env);
-  const [timeline, activeSprint, cards, alerts, snapshots, dailyMessage, seerr, notes, checkin] = await Promise.all([
+  const [timeline, activeSprint, cards, alerts, snapshots, dailyMessage, seerr, notes, checkin, appearance] = await Promise.all([
     getTimeline(date, now, env),
     // D8 allows one active sprint; if a race ever leaves two, show the newest.
     prisma.sprint.findFirst({ where: { status: "active" }, orderBy: [{ startsOn: "desc" }, { updatedAt: "desc" }] }),
@@ -219,6 +222,7 @@ export async function getToday(date: string, now = new Date(), env: NodeJS.Proce
     liveSeerrPending(now, env),
     listVisibleNotes(),
     findCheckin(weekOf(date)),
+    getAppearance(),
   ]);
 
   return assembleToday({
@@ -239,5 +243,6 @@ export async function getToday(date: string, now = new Date(), env: NodeJS.Proce
       radarrUrl: linkFromEnv(env.RADARR_URL),
       seerrUrl: linkFromEnv(env.SEERR_PUBLIC_URL),
     },
+    appearance,
   });
 }

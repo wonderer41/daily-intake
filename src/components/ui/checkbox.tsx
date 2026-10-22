@@ -12,7 +12,7 @@ export interface CheckboxRowProps {
 
 /**
  * Native checkbox (18×18, accent lilac) whose whole row is the <label>, min-height 48px.
- * Checked rows turn #7E8C87 in 250ms; children inherit it through currentColor.
+ * Checked rows turn text-done in 250ms; children inherit it through currentColor.
  */
 export function CheckboxRow({ checked, onCheckedChange, children, disabled, className }: CheckboxRowProps) {
   return (

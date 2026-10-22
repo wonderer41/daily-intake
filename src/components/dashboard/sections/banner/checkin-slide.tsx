@@ -94,7 +94,7 @@ export function CheckinSlide({ checkin }: { checkin: CheckinDto }) {
           </h3>
           <ul className="m-0 grid list-none grid-cols-1 gap-x-8 p-0 md:grid-cols-2">
             {checkin.items.map((line) => (
-              <li key={line.id} className="border-b border-[rgba(216,226,220,0.14)]">
+              <li key={line.id} className="border-b border-ink-light/14">
                 <CheckboxRow checked={line.done} onCheckedChange={(done) => toggle(line, done)}>
                   <span className={line.done ? "line-through" : undefined}>{line.text}</span>
                   {line.checklistItem ? <span className="sr-only"> (also on its card)</span> : null}

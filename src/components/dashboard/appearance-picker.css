@@ -1,0 +1,92 @@
+@layer components {
+  .appearance {
+    position: relative;
+  }
+
+  .appearance__panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 30;
+    box-sizing: border-box;
+    width: min(340px, calc(100vw - 32px));
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .appearance__group {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .appearance__legend {
+    margin-bottom: 4px;
+    padding: 0;
+    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--reflection);
+  }
+
+  .appearance__option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 0 10px;
+    border: 1px solid color-mix(in srgb, var(--ink-light) 30%, transparent);
+    background: color-mix(in srgb, var(--depth) 45%, transparent);
+    color: var(--text-strong);
+    font-size: 14px;
+    cursor: pointer;
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .appearance__option:hover {
+    border-color: var(--ink-light);
+  }
+
+  .appearance__option:has(input:checked) {
+    border-color: var(--lilac);
+    background: color-mix(in srgb, var(--lilac) 16%, transparent);
+  }
+
+  .appearance__option:has(input:focus-visible) {
+    outline: 2px solid var(--lilac-text);
+    outline-offset: 2px;
+  }
+
+  .appearance__swatch {
+    display: flex;
+    flex-shrink: 0;
+    border: 1px solid color-mix(in srgb, var(--ink-light) 50%, transparent);
+  }
+
+  .appearance__swatch > span {
+    width: 14px;
+    height: 22px;
+  }
+
+  .appearance__thumb {
+    flex-shrink: 0;
+    width: 56px;
+    height: 32px;
+    border: 1px solid color-mix(in srgb, var(--ink-light) 50%, transparent);
+    background: var(--pond) center / cover no-repeat;
+  }
+
+  .appearance__error {
+    margin: 0;
+    font-size: 13px;
+    color: var(--amber);
+  }
+}

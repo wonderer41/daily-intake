@@ -25,6 +25,7 @@
     "seerr:settings": "tsx scripts/seerr-settings.ts",
     "seerr:pending": "tsx scripts/seerr-pending.ts",
     "orphans:check": "tsx scripts/orphans-check.ts",
+    "backgrounds:generate": "tsx scripts/generate-backgrounds.ts",
     "db:seed": "tsx scripts/seed.ts",
     "browser:smoke": "tsx scripts/browser-smoke.ts"
   },
@@ -49,6 +50,7 @@
     "eslint": "^9.39.1",
     "eslint-config-next": "16.4.0",
     "postcss": "^8.5.6",
+    "sharp": "^0.35.5",
     "tailwindcss": "4.3.3",
     "typescript": "^5.9.3"
   }

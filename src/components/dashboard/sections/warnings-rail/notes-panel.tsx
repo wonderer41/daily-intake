@@ -284,7 +284,7 @@ function SeerrItem({ count, source, seerrUrl, open, onOpenChange }: SeerrItemPro
           aria-controls={open ? bubbleId : undefined}
           onClick={() => onOpenChange(!open)}
           onKeyDown={onToggleKeyDown}
-          className="flex min-h-11 w-full cursor-pointer items-center gap-3 px-3.5 py-3 text-left hover:bg-[rgba(8,18,22,0.25)]"
+          className="flex min-h-11 w-full cursor-pointer items-center gap-3 px-3.5 py-3 text-left hover:bg-depth/25"
         >
           <span className="flex grow flex-col gap-1">
             <span className="font-semibold text-text-strong">Seerr</span>

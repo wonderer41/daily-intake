@@ -3,7 +3,7 @@ import { cx } from "./cx";
 
 type InputProps = Omit<ComponentPropsWithoutRef<"input">, "type">;
 
-/** Square, rgba(8,18,22,.8) fill, #D8E2DC border, JetBrains Mono 15px, color-scheme dark, min-height 44px. */
+/** Square, depth-tinted fill (80%), ink-light border, JetBrains Mono 15px, color-scheme dark, min-height 44px. */
 export function TextInput({ className, ...rest }: InputProps) {
   return <input type="text" className={cx("input", className)} {...rest} />;
 }

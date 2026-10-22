@@ -167,7 +167,7 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
       <div className="wo-reveal" data-expanded={open ? undefined : ""}>
         <div inert={open}>
           <div className="flex flex-col gap-3 pt-1">
-            <div className="flex flex-wrap items-center gap-2.5 border-t border-[rgba(216,226,220,0.2)] pt-2.5">
+            <div className="flex flex-wrap items-center gap-2.5 border-t border-ink-light/20 pt-2.5">
               {current && card.current ? (
                 <>
                   <span className="font-mono text-[12px] text-text-muted">{card.current.label}</span>
@@ -181,7 +181,7 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
               )}
             </div>
             {card.hermesSuggestion ? (
-              <div className="flex flex-wrap items-center gap-3.5 border border-[rgba(229,154,181,0.6)] bg-[rgba(229,154,181,0.08)] px-4 py-3.5">
+              <div className="flex flex-wrap items-center gap-3.5 border border-lily-pink/60 bg-lily-pink/8 px-4 py-3.5">
                 <div className="flex min-w-0 flex-[1_1_240px] items-baseline gap-2.5">
                   <ChatIcon className="shrink-0 self-center text-lily-pink" />
                   <p className="m-0 min-w-0">
@@ -204,15 +204,15 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
       <div id={listId} className="wo-reveal" data-expanded={open ? "" : undefined}>
         <div inert={!open}>
           {canSchedule ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(216,226,220,0.2)] py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-light/20 py-2">
               <span className="text-[14px] text-text-muted">{card.dueOn ? "Card deadline" : "No card deadline"}</span>
               <DueControl value={card.dueOn} name={title} onChange={setCardDeadline} />
             </div>
           ) : null}
           {card.items.length === 0 ? (
-            <p className="m-0 border-t border-[rgba(216,226,220,0.2)] pt-3 text-[14px] text-text-muted">No checklist items yet.</p>
+            <p className="m-0 border-t border-ink-light/20 pt-3 text-[14px] text-text-muted">No checklist items yet.</p>
           ) : (
-            <ul className="m-0 flex list-none flex-col border-t border-[rgba(216,226,220,0.2)] p-0 pt-1" aria-label={`${title} checklist`}>
+            <ul className="m-0 flex list-none flex-col border-t border-ink-light/20 p-0 pt-1" aria-label={`${title} checklist`}>
               {card.items.map((item) => (
                 <ChecklistRow
                   key={item.id}

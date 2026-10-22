@@ -53,7 +53,7 @@ export function ChecklistRow(props: ChecklistRowProps) {
   };
 
   return (
-    <li ref={rowRef} className="flex flex-col border-b border-[rgba(216,226,220,0.14)]">
+    <li ref={rowRef} className="flex flex-col border-b border-ink-light/14">
       <div className="flex flex-wrap items-center gap-2.5">
         <CheckboxRow checked={item.done} onCheckedChange={(done) => props.onToggle(item, done)} className="min-w-0 flex-[1_1_240px]">
           {numbered ? <span className="wo-num w-9 shrink-0 font-mono text-[13px]">{issueRef(item)}</span> : null}
