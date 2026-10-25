@@ -52,4 +52,4 @@ A new message answers `201`. Sending the same text again is a no-op (`200`), and
 
 ## When it runs on a schedule
 
-End your reply with `[SILENT]` when the push succeeded, so nothing is delivered to the user. If the dashboard failed, say what failed in one line instead.
+When the push succeeded, reply with exactly `✅ Daily message pushed` and nothing else, so the user only gets a short note that the job ran. If the dashboard failed, say what failed in one line instead.

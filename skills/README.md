@@ -69,8 +69,8 @@ The agent has to reach the dashboard on your network; an agent that runs in the 
 ## Scheduled jobs
 
 Times are in the dashboard's time zone (`DASHBOARD_TIME_ZONE`; the agent's scheduler must run in the
-same zone, e.g. `TZ` on the Hermes container). Every scheduled skill ends its reply with `[SILENT]` when
-the run worked, so only failures are delivered: point them at a channel you watch.
+same zone, e.g. `TZ` on the Hermes container). Every scheduled skill replies with one short line when
+the run worked (such as `✅ Gmail pushed`) and says what failed when it didn't: point them at a channel you watch.
 
 | Job | Skills | When |
 |---|---|---|
@@ -78,7 +78,7 @@ the run worked, so only failures are delivered: point them at a channel you watc
 | Gmail | `daily-intake`, `daily-intake-alerts`, `daily-intake-gmail` | Every day 07:00, 08:30, 10:00, 11:30, 13:00, 14:30, 16:00, 17:30 |
 | Stock swings | `daily-intake`, `daily-intake-alerts`, `daily-intake-stock-swings` | Mon–Fri, US Eastern 10:00–12:30 every half hour, 14:00, 16:15 |
 | Weekly check-in | `daily-intake`, `daily-intake-weekly-checkin` | Wednesday 07:30 (write), Friday 15:00 (update) |
-| Sprint end | `daily-intake`, `daily-intake-sprints` | Every day 10:45; silent unless a sprint ends that day, then it messages the user |
+| Sprint end | `daily-intake`, `daily-intake-sprints` | Every day 10:45; one short line unless a sprint ends that day, then it messages the user |
 | Container scan | `daily-intake`, `daily-intake-alerts`, `daily-intake-scan` | Add these to your existing daily container health scan |
 
 With Hermes, for a dashboard in `America/Denver` (Eastern times converted). Replace `<failures>` with the
@@ -105,6 +105,6 @@ $C create --name "Daily Intake: check-in (write)" --deliver <failures> $D --skil
 $C create --name "Daily Intake: check-in (Friday update)" --deliver <failures> $D --skill daily-intake-weekly-checkin \
   "0 15 * * 5" "Update this week's check-in with progress and weekend suggestions."
 $C create --name "Daily Intake: sprint end" --deliver <chat> --failure-deliver <failures> $D --skill daily-intake-sprints \
-  "45 10 * * *" "If today is the active sprint's last day, send the wrap-up and propose the next sprint; otherwise stay silent."
+  "45 10 * * *" "If today is the active sprint's last day, send the wrap-up and propose the next sprint."
 $C edit <your scan job id> --add-skill daily-intake --add-skill daily-intake-alerts --add-skill daily-intake-scan
 ```

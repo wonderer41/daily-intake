@@ -48,6 +48,10 @@ curl -sS -X PUT "$DAILY_INTAKE_URL/api/hermes/<path>" \
 
 The `daily-intake-*` skills show each request as `METHOD path` plus a body.
 
+## Helper files
+
+If you save a helper file during a run (a script, or the JSON from a request), put this run's date and time in its name, such as `di_state_20261025T1430.py`, and delete every file you saved before the run ends. Scheduled runs repeat, and a file an earlier run left under the same name can't be overwritten without reading it first.
+
 ## Read state first
 
 `GET /api/hermes/state` returns:

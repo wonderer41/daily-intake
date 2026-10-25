@@ -39,11 +39,11 @@ Load the `daily-intake` skill first. It has the connection, reading state, keys,
 A daily job checks for the end of the active sprint **every day at 10:45** in the dashboard's time zone, weekends included.
 
 1. `GET /api/hermes/state`. Take `date`, `activeSprint` and `cards`.
-2. If there is no active sprint, or its `endsOn` is not `date`, change nothing and end your reply with `[SILENT]`.
+2. If there is no active sprint, or its `endsOn` is not `date`, change nothing and reply with exactly `✅ No sprint ends today` and nothing else.
 3. On the sprint's last day, message the user and change nothing on the dashboard yet:
    - What got done: the sprint's cards (`sprintId` is the sprint's `id`) with their checked and open items, such as "Streaks v1 ends today: 5 of 8 items done".
    - A proposed next sprint: name, goal and dates (it starts the day after this one ends and lasts as long, unless the user said otherwise), the cards that still have open items (carried over), and anything from their notes or deadlines that fits.
-   - Ask whether to go ahead or what to change. This message is for the user, so don't end it with `[SILENT]`.
+   - Ask whether to go ahead or what to change. This message is for the user, so write it in full.
 4. When they agree: close the old sprint (`"status": "closed"` with its `version`), create the new one, and move each carried-over card to it with `sprintKey`. Cards with every item checked stay with the old sprint. Start the new sprint only when the user says it starts.
 
 If the dashboard can't be reached, say what failed in one line instead.

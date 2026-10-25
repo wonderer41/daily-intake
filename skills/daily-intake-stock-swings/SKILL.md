@@ -62,4 +62,4 @@ Convert them to the zone your scheduler uses. In the dashboard's zone `America/D
 
 ## When it runs on a schedule
 
-End your reply with `[SILENT]` when the run succeeded, so nothing is delivered to the user. If the dashboard failed, or the quotes were stale, say what happened in one line instead.
+When the run succeeded, reply with exactly `✅ Stock swings checked` and nothing else, so the user only gets a short note that the job ran. If the dashboard failed, or the quotes were stale, say what happened in one line instead.

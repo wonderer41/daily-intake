@@ -61,4 +61,4 @@ If `checkin` is `null` (Wednesday's was never written), write a fresh one as in 
 
 ## When it runs on a schedule
 
-End your reply with `[SILENT]` when the push succeeded, so nothing is delivered to the user. If the dashboard failed, say what failed in one line instead.
+When the push succeeded, reply with exactly `✅ Check-in pushed` and nothing else, so the user only gets a short note that the job ran. If the dashboard failed, say what failed in one line instead.

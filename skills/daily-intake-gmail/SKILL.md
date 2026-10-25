@@ -90,4 +90,4 @@ A Needs reply thread that has waited **4 days or more** also becomes an entry in
 
 ## When it runs on a schedule
 
-End your reply with `[SILENT]` when the push succeeded, so nothing is delivered to the user. If Gmail or the dashboard failed, say what failed in one line instead.
+When the push succeeded, reply with exactly `✅ Gmail pushed` and nothing else, so the user only gets a short note that the job ran. If Gmail or the dashboard failed, say what failed in one line instead.
