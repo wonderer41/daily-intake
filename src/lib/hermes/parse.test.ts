@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { HttpError } from "@/lib/api/http";
 import {
+  parseCalendarSources,
   parseNoInput,
   parseUpsertAlert,
   parseUpsertCard,
@@ -78,6 +79,20 @@ test("watchlist: 1–50 tickers, uppercased, duplicates dropped", () => {
   assert.equal(field(() => parseWatchlist({ symbols: ["NVDA", "1BAD"] })), "symbols[1]");
   assert.equal(field(() => parseWatchlist({ symbols: ["NVDA", 7] })), "symbols[1]");
   assert.equal(field(() => parseWatchlist({ symbols: ["NVDA"], replace: true })), "replace");
+});
+
+test("calendar sources take a list of ids, empty allowed, duplicates dropped", () => {
+  assert.deepEqual(parseCalendarSources({ calendarIds: [] }).calendarIds, []);
+  assert.deepEqual(parseCalendarSources({ calendarIds: [" a@group.calendar.google.com ", "b", "a@group.calendar.google.com"] }).calendarIds, [
+    "a@group.calendar.google.com",
+    "b",
+  ]);
+  assert.equal(field(() => parseCalendarSources({})), "calendarIds");
+  assert.equal(field(() => parseCalendarSources({ calendarIds: "a" })), "calendarIds");
+  assert.equal(field(() => parseCalendarSources({ calendarIds: ["a", ""] })), "calendarIds[1]");
+  assert.equal(field(() => parseCalendarSources({ calendarIds: ["x".repeat(201)] })), "calendarIds[0]");
+  assert.equal(field(() => parseCalendarSources({ calendarIds: Array.from({ length: 51 }, (_, i) => `c${i}`) })), "calendarIds");
+  assert.equal(field(() => parseCalendarSources({ calendarIds: [], names: [] })), "names");
 });
 
 test("alerts take an optional http(s) link", () => {

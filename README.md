@@ -102,7 +102,9 @@ Read-only. The dashboard only reads your calendar; Hermes books events with its 
    secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 4. Run `npm run google:auth` in your own terminal (it prints a secret). Open the sign-in link it
    prints and approve read-only access. It then prints a refresh token for `GOOGLE_REFRESH_TOKEN` and lists your calendars so you can pick
-   `GOOGLE_CALENDAR_ID` (`primary` is your main calendar).
+   `GOOGLE_CALENDAR_ID` (`primary` is your main calendar). That is the booking calendar: blocks booked
+   from the page go there, and it is always on the timeline. To show other calendars too, ask Hermes
+   (skill `daily-intake-calendars`).
 5. Test: `npm run sync:calendar`.
 
 ### Stocks (banner)
@@ -248,6 +250,7 @@ in Hermes, Claude Code and other agents that read that format.
 | [`daily-intake-daily-message`](skills/daily-intake-daily-message/SKILL.md) | Write the daily message |
 | [`daily-intake-weekly-checkin`](skills/daily-intake-weekly-checkin/SKILL.md) | Write the weekly check-in |
 | [`daily-intake-scheduling`](skills/daily-intake-scheduling/SKILL.md) | Book work blocks from chat, linked to their item or alert, and tell the dashboard the calendar changed |
+| [`daily-intake-calendars`](skills/daily-intake-calendars/SKILL.md) | Show, add or remove the Google calendars on the timeline |
 
 [`skills/README.md`](skills/README.md) has the install commands, the setup and the scheduled jobs (with
 their times). In short: Hermes installs them straight from this repo

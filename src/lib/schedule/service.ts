@@ -1,7 +1,9 @@
 import type { Prisma, ScheduleRequest } from "@/generated/prisma/client";
 import { HttpError } from "@/lib/api/http";
 import { prisma } from "@/lib/db/prisma";
+import { readShownCalendars } from "@/lib/integrations/google-calendar/sources";
 import { publishLiveEvent } from "@/lib/live/publish";
+import { timelineCalendarIds } from "@/lib/timeline/query";
 import { dashboardTimeZone, dayBounds, formatClock, localDateString, zonedTimeToUtc } from "@/lib/time/zone";
 import type { ScheduleMessage, ScheduleRequestDto } from "@/types/dashboard-contracts";
 import { DAY_MINUTES, findFree, type BusyRange } from "./free-slot";
@@ -73,17 +75,19 @@ function wallMinutes(instant: Date, date: string, timeZone: string): number {
 }
 
 /**
- * Timed, non-cancelled events cached for a local day, without the target's own blocks: a reschedule
- * must not clash with the block it replaces. All-day events don't block time (same as the page).
+ * Timed, non-cancelled events cached for a local day on the calendars the page shows, without the
+ * target's own blocks: a reschedule must not clash with the block it replaces. All-day events don't
+ * block time (same as the page).
  */
 export async function cachedBusy(date: string, timeZone: string, skip: ScheduleTargetRef): Promise<CachedEvent[]> {
   const { start, end } = dayBounds(date, timeZone);
+  const calendarIds = timelineCalendarIds(await readShownCalendars());
   const notTarget: Prisma.CalendarEventWhereInput =
     skip.kind === "item"
       ? { OR: [{ checklistItemId: null }, { checklistItemId: { not: skip.id } }] }
       : { OR: [{ alertId: null }, { alertId: { not: skip.id } }] };
   return prisma.calendarEvent.findMany({
-    where: { status: { not: "cancelled" }, allDay: false, startsAt: { lt: end }, endsAt: { gt: start }, ...notTarget },
+    where: { calendarId: { in: calendarIds }, status: { not: "cancelled" }, allDay: false, startsAt: { lt: end }, endsAt: { gt: start }, ...notTarget },
     orderBy: { startsAt: "asc" },
     select: EVENT_FIELDS,
   });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { HttpError } from "@/lib/api/http";
-import { fetchGoogleCalendarWindow } from "./client";
+import { fetchGoogleCalendarList, fetchGoogleCalendarWindow } from "./client";
 import type { GoogleCalendarConfig } from "./config";
 
 const realFetch = globalThis.fetch;
@@ -71,4 +71,40 @@ test("a token rejected twice in a row is an UNAUTHORIZED error", async () => {
     (error: unknown) => error instanceof HttpError && error.code === "UNAUTHORIZED",
   );
   assert.equal(calls.tokens, 2);
+});
+
+test("the calendar list reads every page, names each calendar and marks the main one", async () => {
+  const pages: string[] = [];
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.startsWith("https://oauth2.googleapis.com/token")) return Response.json({ access_token: "list-token", expires_in: 3599 });
+    pages.push(url);
+    if (!url.includes("pageToken=")) {
+      return Response.json({
+        items: [
+          { id: "me@gmail.com", summary: "me@gmail.com", primary: true },
+          { id: "imp@group.calendar.google.com", summary: "Important" },
+        ],
+        nextPageToken: "next",
+      });
+    }
+    return Response.json({ items: [{ id: "shared@group.calendar.google.com", summary: "Team", summaryOverride: "Work team" }, { id: "x@y" }] });
+  };
+  const calendars = await fetchGoogleCalendarList(config("list"));
+  assert.deepEqual(calendars, [
+    { id: "me@gmail.com", name: "me@gmail.com", primary: true },
+    { id: "imp@group.calendar.google.com", name: "Important", primary: false },
+    { id: "shared@group.calendar.google.com", name: "Work team", primary: false },
+    { id: "x@y", name: "x@y", primary: false },
+  ]);
+  assert.equal(pages.length, 2);
+  assert.ok(pages[0].includes("/users/me/calendarList?") && pages[0].includes("showHidden=true"));
+});
+
+test("the calendar list reports Google errors as HttpError", async () => {
+  globalThis.fetch = async (input) => {
+    if (String(input).startsWith("https://oauth2.googleapis.com/token")) return Response.json({ access_token: "t", expires_in: 3599 });
+    return new Response("{}", { status: 500 });
+  };
+  await assert.rejects(fetchGoogleCalendarList(config("list-error")), (error: unknown) => error instanceof HttpError && error.code === "UPSTREAM_ERROR");
 });

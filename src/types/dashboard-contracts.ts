@@ -536,14 +536,50 @@ export interface HermesBannerResult {
   data: GmailSnapshot | OrphansSnapshot | ScanSnapshot | StocksSnapshot;
 }
 
-export interface HermesCalendarChangedResult {
+export interface HermesCalendarSyncCounts {
   calendarId: string;
   changedDates: string[];
   created: number;
   updated: number;
   cancelled: number;
   unchanged: number;
+}
+
+/** POST /api/hermes/calendar/changed. Top-level counts add up every shown calendar; calendarId is the booking calendar. */
+export interface HermesCalendarChangedResult extends HermesCalendarSyncCounts {
   syncedAt: string;
+  /** One entry per shown calendar, the booking calendar first. */
+  calendars: (HermesCalendarSyncCounts & { name: string | null })[];
+}
+
+/** One calendar on the Google account, in GET and PUT /api/hermes/calendar/sources (D4). */
+export interface HermesCalendarSource {
+  id: string;
+  name: string;
+  /** The account's main calendar. */
+  primary: boolean;
+  /** On the timeline. */
+  shown: boolean;
+  /** The booking calendar (GOOGLE_CALENDAR_ID): always shown, can't be removed. */
+  locked: boolean;
+  /** False for a shown calendar that is no longer on the Google account (deleted, or access removed). */
+  onAccount: boolean;
+  lastSyncAt: string | null;
+  syncError: string | null;
+}
+
+export interface HermesCalendarSources {
+  calendars: HermesCalendarSource[];
+}
+
+/** PUT /api/hermes/calendar/sources: `{ calendarIds }` replaces the extra calendars (the booking one is always kept). */
+export interface HermesCalendarSourcesResult extends HermesWriteResult<HermesCalendarSources> {
+  /** False when the stored list already was exactly these calendars. */
+  changed: boolean;
+  /** True when the calendars were synced right away (only tried when calendars were added). */
+  synced: boolean;
+  /** Why that sync failed. Never contains secrets. */
+  syncError?: string;
 }
 
 // GET /api/hermes/state — compact on purpose (Hermes reads it before every write).

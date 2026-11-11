@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { combineSyncStates, readShownCalendars, type ShownCalendar } from "@/lib/integrations/google-calendar/sources";
 import { dashboardTimeZone, dayBounds } from "@/lib/time/zone";
 import type { TimelineResponse } from "@/types/dashboard-contracts";
 import { buildTimeline } from "./build";
@@ -10,16 +11,24 @@ import { buildTimeline } from "./build";
  */
 export const SEED_CALENDAR_ID = "seed";
 
+/**
+ * Calendars whose cached events the page shows and the scheduler treats as busy: every shown
+ * Google calendar, plus the demo seed outside production.
+ */
+export function timelineCalendarIds(shown: readonly ShownCalendar[], env: NodeJS.ProcessEnv = process.env): string[] {
+  const ids = shown.map((calendar) => calendar.calendarId);
+  if (env.NODE_ENV !== "production") ids.push(SEED_CALENDAR_ID);
+  return ids;
+}
+
 /** The timeline for one local date, read from the CalendarEvent cache (never from Google directly). */
 export async function getTimeline(date: string, now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<TimelineResponse> {
   const timeZone = dashboardTimeZone(env);
-  const calendarId = env.GOOGLE_CALENDAR_ID?.trim();
-  // The demo seed (scripts/seed.ts) writes to its own calendar; it is only shown outside production.
-  const calendarIds = calendarId ? [calendarId] : [];
-  if (env.NODE_ENV !== "production") calendarIds.push(SEED_CALENDAR_ID);
+  const shown = await readShownCalendars(env);
+  const calendarIds = timelineCalendarIds(shown, env);
 
   const { start, end } = dayBounds(date, timeZone);
-  const [events, syncState] = await Promise.all([
+  const [events, syncStates] = await Promise.all([
     prisma.calendarEvent.findMany({
       where: { calendarId: { in: calendarIds }, status: { not: "cancelled" }, startsAt: { lt: end }, endsAt: { gt: start } },
       select: {
@@ -34,15 +43,21 @@ export async function getTimeline(date: string, now = new Date(), env: NodeJS.Pr
         htmlLink: true,
       },
     }),
-    calendarId ? prisma.calendarSyncState.findUnique({ where: { calendarId }, select: { lastSyncAt: true, lastError: true } }) : null,
+    shown.length
+      ? prisma.calendarSyncState.findMany({
+          where: { calendarId: { in: shown.map((calendar) => calendar.calendarId) } },
+          select: { calendarId: true, lastSyncAt: true, lastError: true },
+        })
+      : [],
   ]);
+  const health = combineSyncStates(shown, syncStates);
 
   return buildTimeline({
     date,
     timeZone,
     now,
     events,
-    lastSyncAt: syncState?.lastSyncAt ?? null,
-    syncError: calendarId ? (syncState?.lastError ?? null) : "Google Calendar is not configured",
+    lastSyncAt: health.lastSyncAt,
+    syncError: shown.length ? health.syncError : "Google Calendar is not configured",
   });
 }

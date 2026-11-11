@@ -187,6 +187,19 @@ export function parseDailyMessage(body: unknown): { text: string } {
   return { text: requiredString(o.text, "text", 500) };
 }
 
+/** Most calendars PUT /api/hermes/calendar/sources takes, besides the booking calendar. */
+export const CALENDAR_SOURCES_MAX = 50;
+
+/**
+ * PUT /api/hermes/calendar/sources: the Google calendar ids to show besides the booking calendar.
+ * An empty list shows only the booking calendar. Duplicates are dropped (first one wins).
+ */
+export function parseCalendarSources(body: unknown): { calendarIds: string[] } {
+  const o = strictObject(body, ROOT, ["calendarIds"]);
+  const calendarIds = arrayOf(o.calendarIds, "calendarIds", CALENDAR_SOURCES_MAX, (value, field) => requiredString(value, field, 200));
+  return { calendarIds: [...new Set(calendarIds)] };
+}
+
 export function parseCalendarChanged(body: unknown): { calendarId: string | undefined } {
   const o = strictObject(body ?? {}, ROOT, ["calendarId"]);
   return { calendarId: optionalString(o.calendarId, "calendarId", 200) ?? undefined };

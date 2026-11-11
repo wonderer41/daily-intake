@@ -71,9 +71,14 @@ const STORED_FIELDS = {
   htmlLink: true,
 } as const;
 
-/** Pulls the rolling window from Google and brings the CalendarEvent cache in line with it. */
-export async function syncCalendarTimeline(now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<CalendarSyncResult> {
-  const config = loadGoogleCalendarConfig(env);
+/**
+ * Pulls the rolling window of one calendar from Google and brings that calendar's rows in the
+ * CalendarEvent cache in line with it. `calendarId` defaults to the booking calendar
+ * (GOOGLE_CALENDAR_ID); the other shown calendars come from CalendarSource.
+ */
+export async function syncCalendarTimeline(now = new Date(), env: NodeJS.ProcessEnv = process.env, calendarId?: string): Promise<CalendarSyncResult> {
+  const base = loadGoogleCalendarConfig(env);
+  const config = calendarId ? { ...base, calendarId } : base;
   const timeZone = dashboardTimeZone(env);
   const today = localDateString(now, timeZone);
   const windowStart = dayBounds(addDays(today, -WINDOW_PAST_DAYS), timeZone).start;

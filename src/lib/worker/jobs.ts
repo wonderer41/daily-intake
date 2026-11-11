@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
+import { loadGoogleCalendarConfig } from "@/lib/integrations/google-calendar/config";
+import { readShownCalendars } from "@/lib/integrations/google-calendar/sources";
 import { syncCalendarTimeline } from "@/lib/integrations/google-calendar/timeline-sync";
 import { orphansDir, readOrphansFolder } from "@/lib/integrations/orphans/folder";
 import { formatOrphansCheck, lastWeeklyCheckAt, runOrphansCheck } from "@/lib/integrations/orphans/sync";
@@ -10,25 +12,29 @@ import { runPushReviewQueue } from "@/lib/push-review/runner";
 import { runScheduleQueue } from "@/lib/schedule/runner";
 import { publishLiveEvent, sendLiveEvent } from "@/lib/live/publish";
 import { dashboardTimeZone, localDateString } from "@/lib/time/zone";
-import { type CalendarJobResult, formatCalendarJobResult, syncCalendarAndPublish } from "./calendar-job";
+import { type CalendarRunEntry, formatCalendarRun, syncCalendarsAndPublish } from "./calendar-job";
 import { runGithubSyncJob } from "./github-job";
 import { formatRetentionResult, runRetention } from "./retention";
 import type { WorkerJob } from "./scheduler";
 
 const MINUTE = 60_000;
 
-/** Calendar sync + live updates, wired to the real database, Google and NOTIFY. */
-export function runCalendarSync(now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<CalendarJobResult> {
-  const calendarId = env.GOOGLE_CALENDAR_ID?.trim();
-  return syncCalendarAndPublish(now, dashboardTimeZone(env), {
-    sync: (at) => syncCalendarTimeline(at, env),
+/**
+ * Calendar sync + live updates for every shown calendar (the booking calendar, then CalendarSource),
+ * wired to the real database, Google and NOTIFY.
+ */
+export async function runCalendarSync(now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<CalendarRunEntry[]> {
+  // Throws "GOOGLE_… is not configured" when Google Calendar is not set up, as the sync always did.
+  loadGoogleCalendarConfig(env);
+  const calendars = await readShownCalendars(env);
+  return syncCalendarsAndPublish(now, dashboardTimeZone(env), calendars, (calendarId) => ({
+    sync: (at) => syncCalendarTimeline(at, env, calendarId),
     readSyncError: async () => {
-      if (!calendarId) return undefined;
       const state = await prisma.calendarSyncState.findUnique({ where: { calendarId }, select: { lastError: true } });
       return state?.lastError ?? null;
     },
     publish: publishLiveEvent,
-  });
+  }));
 }
 
 // Pending count from the previous poll; checkSeerrPending publishes seerr.changed when it differs.
@@ -47,7 +53,7 @@ export const workerJobs: WorkerJob[] = [
   {
     name: "calendar-sync",
     trigger: { everyMs: 2 * MINUTE },
-    run: async ({ now }) => formatCalendarJobResult(await runCalendarSync(now)),
+    run: async ({ now }) => formatCalendarRun(await runCalendarSync(now)),
   },
   {
     name: "day-rollover",

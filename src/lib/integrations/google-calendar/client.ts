@@ -79,29 +79,11 @@ async function accessToken(config: GoogleCalendarConfig): Promise<string> {
   return payload.access_token;
 }
 
-/** One page of events, or null when Google rejected the access token (401). */
-async function fetchPage(
-  config: GoogleCalendarConfig,
-  token: string,
-  timeMin: string,
-  timeMax: string,
-  pageToken?: string,
-): Promise<CalendarListResponse | null> {
-  const params = new URLSearchParams({
-    calendarId: config.calendarId,
-    timeMin,
-    timeMax,
-    singleEvents: "true",
-    orderBy: "startTime",
-    // Cancelled events must come back so the cache can mark them cancelled.
-    showDeleted: "true",
-    maxResults: String(PAGE_SIZE),
-  });
-  if (pageToken) params.set("pageToken", pageToken);
-
+/** One GET against the Calendar API, or null when Google rejected the access token (401). */
+async function getJson(url: string, token: string): Promise<CalendarListResponse | null> {
   let response: Response;
   try {
-    response = await fetch(`${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(config.calendarId)}/events?${params.toString()}`, {
+    response = await fetch(url, {
       headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
@@ -121,21 +103,75 @@ async function fetchPage(
   return payload as CalendarListResponse;
 }
 
-/** fetchPage with the reused token; if Google rejects it (revoked or expired early), retries once with a fresh one. */
-async function fetchPageAuthorized(
+/** getJson with the reused token; if Google rejects it (revoked or expired early), retries once with a fresh one. */
+async function getJsonAuthorized(config: GoogleCalendarConfig, url: string): Promise<CalendarListResponse> {
+  const token = await accessToken(config);
+  const page = await getJson(url, token);
+  if (page) return page;
+
+  forgetAccessToken(token);
+  const retry = await getJson(url, await accessToken(config));
+  if (!retry) throw new HttpError("UNAUTHORIZED", "Google Calendar API request failed with status 401");
+  return retry;
+}
+
+/** One page of events in the window. */
+function fetchPageAuthorized(
   config: GoogleCalendarConfig,
   timeMin: string,
   timeMax: string,
   pageToken?: string,
 ): Promise<CalendarListResponse> {
-  const token = await accessToken(config);
-  const page = await fetchPage(config, token, timeMin, timeMax, pageToken);
-  if (page) return page;
+  const params = new URLSearchParams({
+    calendarId: config.calendarId,
+    timeMin,
+    timeMax,
+    singleEvents: "true",
+    orderBy: "startTime",
+    // Cancelled events must come back so the cache can mark them cancelled.
+    showDeleted: "true",
+    maxResults: String(PAGE_SIZE),
+  });
+  if (pageToken) params.set("pageToken", pageToken);
+  return getJsonAuthorized(config, `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(config.calendarId)}/events?${params.toString()}`);
+}
 
-  forgetAccessToken(token);
-  const retry = await fetchPage(config, await accessToken(config), timeMin, timeMax, pageToken);
-  if (!retry) throw new HttpError("UNAUTHORIZED", "Google Calendar API request failed with status 401");
-  return retry;
+// ---------- Calendar list (which calendars the account has) ----------
+
+const MAX_LIST_PAGES = 10;
+
+export interface GoogleCalendarListEntry {
+  id: string;
+  /** The calendar's name, or its id when Google has none. */
+  name: string;
+  /** True for the account's main calendar, the one "primary" points at. */
+  primary: boolean;
+}
+
+function parseListEntry(value: unknown): GoogleCalendarListEntry {
+  if (!isRecord(value) || typeof value.id !== "string" || !value.id) {
+    throw new HttpError("UPSTREAM_ERROR", "Google Calendar returned a malformed calendar list entry");
+  }
+  // summaryOverride is the name the user gave a calendar someone else shared with them.
+  const name = stringOrNull(value.summaryOverride) ?? stringOrNull(value.summary) ?? value.id;
+  return { id: value.id, name, primary: value.primary === true };
+}
+
+/** Every calendar on the account's calendar list, hidden ones included, in Google's order. */
+export async function fetchGoogleCalendarList(config: GoogleCalendarConfig): Promise<GoogleCalendarListEntry[]> {
+  const calendars: GoogleCalendarListEntry[] = [];
+  let pageToken: string | undefined;
+
+  for (let page = 0; page < MAX_LIST_PAGES; page += 1) {
+    const params = new URLSearchParams({ maxResults: String(PAGE_SIZE), showHidden: "true" });
+    if (pageToken) params.set("pageToken", pageToken);
+    const response = await getJsonAuthorized(config, `${GOOGLE_CALENDAR_API}/users/me/calendarList?${params.toString()}`);
+    if (!Array.isArray(response.items)) throw new HttpError("UPSTREAM_ERROR", "Google Calendar returned an invalid calendar list");
+    calendars.push(...response.items.map(parseListEntry));
+    if (typeof response.nextPageToken !== "string") return calendars;
+    pageToken = response.nextPageToken;
+  }
+  return calendars;
 }
 
 // ---------- Timeline window (CalendarEvent cache) ----------

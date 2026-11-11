@@ -1,5 +1,6 @@
-// Runs one Google Calendar sync into the CalendarEvent cache, publishes timeline.changed for the
-// affected dates (the same run as the worker's calendar-sync job) and prints the resulting timeline.
+// Runs one Google Calendar sync of every shown calendar into the CalendarEvent cache, publishes
+// timeline.changed for the affected dates (the same run as the worker's calendar-sync job) and
+// prints the resulting timeline.
 // Usage: npm run sync:calendar [-- --date YYYY-MM-DD]
 import "dotenv/config";
 import { prisma } from "@/lib/db/prisma";
@@ -26,14 +27,15 @@ async function main(): Promise<void> {
   const now = new Date();
   const date = dateArgument() ?? localDateString(now, timeZone);
 
-  const { sync, publishedDates } = await runCalendarSync(now);
-  console.log(`Calendar sync · ${sync.calendarId}`);
-  const lastDay = localDateString(new Date(new Date(sync.window.end).getTime() - 1), timeZone);
-  console.log(`  window     ${localDateString(new Date(sync.window.start), timeZone)} → ${lastDay} (${timeZone})`);
-  console.log(`  fetched ${sync.fetched} · created ${sync.created} · updated ${sync.updated} · cancelled ${sync.cancelled} · unchanged ${sync.unchanged}`);
-  if (!sync.complete) console.log("  warning    Google had more events than one sync reads; deleted events were not cancelled this run");
-  if (sync.changedDates.length) console.log(`  changed    ${sync.changedDates.join(", ")}`);
-  if (publishedDates.length) console.log(`  published  timeline.changed for ${publishedDates.join(", ")}`);
+  for (const { sync, publishedDates, name } of await runCalendarSync(now)) {
+    console.log(`Calendar sync · ${name ? `${name} (${sync.calendarId})` : `${sync.calendarId} (booking calendar)`}`);
+    const lastDay = localDateString(new Date(new Date(sync.window.end).getTime() - 1), timeZone);
+    console.log(`  window     ${localDateString(new Date(sync.window.start), timeZone)} → ${lastDay} (${timeZone})`);
+    console.log(`  fetched ${sync.fetched} · created ${sync.created} · updated ${sync.updated} · cancelled ${sync.cancelled} · unchanged ${sync.unchanged}`);
+    if (!sync.complete) console.log("  warning    Google had more events than one sync reads; deleted events were not cancelled this run");
+    if (sync.changedDates.length) console.log(`  changed    ${sync.changedDates.join(", ")}`);
+    if (publishedDates.length) console.log(`  published  timeline.changed for ${publishedDates.join(", ")}`);
+  }
 
   const timeline = await getTimeline(date, now);
   console.log(`\nTimeline · ${timeline.date} (${timeline.timeZone})`);

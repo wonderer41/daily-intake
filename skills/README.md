@@ -25,6 +25,7 @@ Claude Code and other agents that read that format.
 | [`daily-intake-daily-message`](daily-intake-daily-message/SKILL.md) | Write the daily message | Scheduled, and chat |
 | [`daily-intake-weekly-checkin`](daily-intake-weekly-checkin/SKILL.md) | Write the weekly check-in and update it | Scheduled, and chat |
 | [`daily-intake-scheduling`](daily-intake-scheduling/SKILL.md) | Book work blocks from chat, linked to their item or alert; tell the dashboard the calendar changed | Chat |
+| [`daily-intake-calendars`](daily-intake-calendars/SKILL.md) | Show, add or remove the Google calendars on the timeline | Chat |
 
 The dashboard does some jobs itself, with no skill: it reviews pushes to the repos on cards, raises
 Seerr requests that waited too long, and keeps the orphan-folder list.
@@ -39,7 +40,7 @@ one first if you like: `hermes skills inspect wonderer41/daily-intake/skills/dai
 ```bash
 for skill in daily-intake daily-intake-sprints daily-intake-alerts daily-intake-notes daily-intake-gmail \
   daily-intake-scan daily-intake-stock-swings daily-intake-watchlist daily-intake-daily-message \
-  daily-intake-weekly-checkin daily-intake-scheduling; do
+  daily-intake-weekly-checkin daily-intake-scheduling daily-intake-calendars; do
   hermes skills install "wonderer41/daily-intake/skills/$skill" --yes
 done
 ```

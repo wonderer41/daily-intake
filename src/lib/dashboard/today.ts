@@ -69,7 +69,7 @@ function bannerSlide<K extends BannerKind>(snapshots: SnapshotRow[], kind: K): {
   }
 }
 
-/** Calendar health from the sync state getTimeline already read for GOOGLE_CALENDAR_ID. */
+/** Calendar health across every shown calendar, from the sync states getTimeline already combined. */
 export function calendarSource(timeline: TimelineResponse, now: Date, staleMs = CALENDAR_STALE_MS): SourceStateDto {
   const { lastSyncAt, syncError } = timeline;
   if (syncError) return { ok: false, lastSyncAt, error: syncError };

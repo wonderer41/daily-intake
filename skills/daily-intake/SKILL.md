@@ -31,6 +31,7 @@ This is the base for the `daily-intake-*` skills. Each of them starts with "load
 | `daily-intake-daily-message` | The daily message |
 | `daily-intake-weekly-checkin` | The weekly check-in |
 | `daily-intake-scheduling` | Booking work blocks from chat, linked to items and alerts, and calendar changes the timeline should pick up |
+| `daily-intake-calendars` | Which of the user's Google calendars the timeline shows |
 
 The dashboard does some jobs itself, with no skill: it reviews pushes to the repos on cards (it sends you the commits and reads your answer), it raises Seerr requests that waited too long in Important, and it keeps the orphans list (it reads the orphan folder every Wednesday and raises orphans left there in Important). Never raise or resolve the alerts the dashboard owns: `seerr:`, `orphans:` and `github:push-review:` (the full list is in `daily-intake-alerts`).
 
