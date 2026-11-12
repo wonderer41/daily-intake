@@ -474,17 +474,88 @@
 
   /* ---------- 4 Stocks ---------- */
 
+  /* Fills the rest of the slide (every slide is as tall as the tallest one). */
   .banner-stocks {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
-    gap: 16px 20px;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 
+  /*
+   * One grid per column count (stocks-slide.tsx); only the widest that fits is shown. A column needs
+   * 280px plus the 20px gap: 4 from 1180px of slide width, 3 from 880px, 2 from 580px, else 1.
+   */
+  .banner-stocks__grid {
+    --stocks-head: 24px;
+    display: none;
+    flex: 1 1 auto;
+    column-gap: 20px;
+  }
+
+  .banner-stocks__grid[data-layout="1"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .banner-stocks__grid[data-layout="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .banner-stocks__grid[data-layout="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .banner-stocks__grid[data-layout="4"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  @container banner-slide (min-width: 580px) {
+    .banner-stocks__grid[data-layout="1"] {
+      display: none;
+    }
+
+    .banner-stocks__grid[data-layout="2"] {
+      display: grid;
+    }
+  }
+
+  @container banner-slide (min-width: 880px) {
+    .banner-stocks__grid[data-layout="2"] {
+      display: none;
+    }
+
+    .banner-stocks__grid[data-layout="3"] {
+      display: grid;
+    }
+  }
+
+  @container banner-slide (min-width: 1180px) {
+    .banner-stocks__grid[data-layout="3"] {
+      display: none;
+    }
+
+    .banner-stocks__grid[data-layout="4"] {
+      display: grid;
+    }
+  }
+
+  /* As tall as the slide allows; the browser hands the extra height to the body rows, not the header. */
   .banner-stocks__table {
     width: 100%;
+    height: 100%;
     border-collapse: collapse;
     font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
-    align-self: start;
+  }
+
+  .banner-stocks__table thead tr {
+    height: var(--stocks-head);
+  }
+
+  /* Stretched rows: keep each stock in the middle of its row instead of at the top. */
+  .banner-stocks__table tbody th,
+  .banner-stocks__table tbody td {
+    vertical-align: middle;
   }
 
   .banner-stocks__table th,

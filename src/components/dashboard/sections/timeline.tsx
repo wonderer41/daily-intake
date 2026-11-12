@@ -36,7 +36,7 @@ function countLabel(count: number, today: boolean): string {
  * The day's calendar, sitting on the painting (no glass panel), in one of four modes this device
  * remembers. Track (the default): cards on a line with the gaps above it, a dashed lilac "now" card,
  * all-day chips first; on today it opens at the card before "now", drifts left at ~12px/s and loops,
- * and Earlier / Later, arrow keys, touch and trackpad scroll it too. Agenda: one row per event. Day bar: the whole day on one proportional
+ * and Earlier / Later, arrow keys, dragging with the mouse, touch and trackpad scroll it too. Agenda: one row per event. Day bar: the whole day on one proportional
  * bar. Hours: a calendar-style day grid, overlapping events side by side.
  */
 export function Timeline({ timeline, now, date, calendar }: TimelineProps) {
@@ -46,7 +46,7 @@ export function Timeline({ timeline, now, date, calendar }: TimelineProps) {
   const empty = view.eventCount === 0;
   const [mode, setMode] = useTimelineMode();
   const track = mode === "track";
-  const { viewportRef, earlier, later, onKeyDown, onPointerEnter, onPointerLeave, onFocus, onBlur } = useAutoScroll(date, track && !empty);
+  const { viewportRef, earlier, later, onKeyDown, onFocus, onBlur, ...pointer } = useAutoScroll(date, track && !empty);
 
   const titleId = useId();
   const trackId = useId();
@@ -97,8 +97,7 @@ export function Timeline({ timeline, now, date, calendar }: TimelineProps) {
           aria-describedby={hintId}
           tabIndex={0}
           onKeyDown={onKeyDown}
-          onPointerEnter={onPointerEnter}
-          onPointerLeave={onPointerLeave}
+          {...pointer}
         >
           <TimelineTrack allDay={view.allDay} items={view.items} />
         </div>

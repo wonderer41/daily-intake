@@ -1,6 +1,7 @@
 // Timeline motion: a slow continuous drift to the left, a pause at the end,
-// an eased jump back to the start, and 600 ms eased jumps for Earlier / Later. Plain DOM + rAF, no React:
-// the section creates one AutoScroller per mounted track and calls it from event handlers.
+// an eased jump back to the start, 600 ms eased jumps for Earlier / Later, and dragging with the mouse.
+// Plain DOM + rAF, no React: the section creates one AutoScroller per mounted track and calls it from
+// event handlers.
 
 /** Continuous drift speed. */
 export const DRIFT_PX_PER_S = 12;
@@ -66,6 +67,19 @@ export function stepTarget(starts: readonly number[], from: number, direction: -
   return Math.max(0, Math.min(limit, previous));
 }
 
+/**
+ * scrollLeft while dragging: the track follows the mouse (drag right shows earlier cards), kept in
+ * [0, max]. `startScroll` and `startX` are scrollLeft and the pointer's clientX when the drag began.
+ */
+export function dragScrollLeft(startScroll: number, startX: number, clientX: number, max: number): number {
+  return Math.max(0, Math.min(Math.max(0, max), startScroll - (clientX - startX)));
+}
+
+interface Drag {
+  startX: number;
+  startScroll: number;
+}
+
 interface Jump {
   from: number;
   to: number;
@@ -96,6 +110,7 @@ export class AutoScroller {
   private waitUntil = 0;
   private atEndSince: number | null = null;
   private jump: Jump | null = null;
+  private drag: Drag | null = null;
   private disposed = false;
 
   /** `holdMs`: stay put this long before drifting (the track opened on "now", not at its start). */
@@ -127,6 +142,26 @@ export class AutoScroller {
   /** Keyboard focus inside the section (arrows or track). */
   setFocused(focused: boolean): void {
     this.focused = focused;
+  }
+
+  /** Mouse button pressed on the track: it follows the mouse until endDrag, with no drift meanwhile. */
+  beginDrag(clientX: number): void {
+    this.jump = null;
+    this.atEndSince = null;
+    this.drag = { startX: clientX, startScroll: this.element.scrollLeft };
+  }
+
+  dragTo(clientX: number): void {
+    if (!this.drag) return;
+    this.position = dragScrollLeft(this.drag.startScroll, this.drag.startX, clientX, this.max());
+    this.write(this.position);
+  }
+
+  /** Released (or cancelled): stays where it was let go, then holds the drift for 10 s like Earlier / Later. */
+  endDrag(): void {
+    if (!this.drag) return;
+    this.drag = null;
+    this.hold();
   }
 
   /** Earlier (-1) / Later (+1): one card, eased over 600 ms, then hold the drift for 10 s. */
@@ -239,7 +274,7 @@ export class AutoScroller {
   }
 
   private drift(now: number, elapsed: number): void {
-    if (this.hovered || this.focused || now < this.holdUntil || now < this.waitUntil) return;
+    if (this.drag || this.hovered || this.focused || now < this.holdUntil || now < this.waitUntil) return;
     const max = this.max();
     if (max <= 0) return;
 

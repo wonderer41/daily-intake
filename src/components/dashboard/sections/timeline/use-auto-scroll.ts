@@ -10,10 +10,19 @@ export interface AutoScrollControls {
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
   onPointerEnter: (event: PointerEvent<HTMLElement>) => void;
   onPointerLeave: (event: PointerEvent<HTMLElement>) => void;
+  /** Press, move and release with the mouse to drag the track. Touch and trackpads keep scrolling natively. */
+  onPointerDown: (event: PointerEvent<HTMLElement>) => void;
+  onPointerMove: (event: PointerEvent<HTMLElement>) => void;
+  onPointerUp: (event: PointerEvent<HTMLElement>) => void;
+  onPointerCancel: (event: PointerEvent<HTMLElement>) => void;
+  onLostPointerCapture: (event: PointerEvent<HTMLElement>) => void;
   /** Put both on the section so keyboard focus anywhere inside (arrows or track) pauses the drift. */
   onFocus: (event: FocusEvent<HTMLElement>) => void;
   onBlur: (event: FocusEvent<HTMLElement>) => void;
 }
+
+/** On the viewport while the mouse drags it (see timeline.css). */
+const DRAGGING_CLASS = "is-dragging";
 
 /**
  * Where the track opens: on today, the card just before "now" sits at the left edge, so what is on
@@ -68,6 +77,28 @@ export function useAutoScroll(resetKey: string, active: boolean): AutoScrollCont
   }, []);
   const onPointerLeave = useCallback(() => scrollerRef.current?.setHovered(false), []);
 
+  // Mouse drag. The pointer is captured, so the drag keeps going if the mouse leaves the track while
+  // pressed. The class (set on the element, not in React state, so no re-render per move) switches the
+  // cursor to "grabbing" and stops the drag from selecting card text.
+  const dragPointer = useRef<number | null>(null);
+  const onPointerDown = useCallback((event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType !== "mouse" || event.button !== 0 || !scrollerRef.current) return;
+    dragPointer.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.classList.add(DRAGGING_CLASS);
+    scrollerRef.current.beginDrag(event.clientX);
+  }, []);
+  const onPointerMove = useCallback((event: PointerEvent<HTMLElement>) => {
+    if (dragPointer.current === event.pointerId) scrollerRef.current?.dragTo(event.clientX);
+  }, []);
+  const endDrag = useCallback((event: PointerEvent<HTMLElement>) => {
+    if (dragPointer.current !== event.pointerId) return;
+    dragPointer.current = null;
+    event.currentTarget.classList.remove(DRAGGING_CLASS);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    scrollerRef.current?.endDrag();
+  }, []);
+
   // Only keyboard focus pauses: a mouse click on Earlier / Later leaves focus on the button, and that
   // should hold the drift for 10 s, not stop it until the next click elsewhere.
   const onFocus = useCallback((event: FocusEvent<HTMLElement>) => {
@@ -79,5 +110,19 @@ export function useAutoScroll(resetKey: string, active: boolean): AutoScrollCont
     scrollerRef.current?.setFocused(false);
   }, []);
 
-  return { viewportRef, earlier, later, onKeyDown, onPointerEnter, onPointerLeave, onFocus, onBlur };
+  return {
+    viewportRef,
+    earlier,
+    later,
+    onKeyDown,
+    onPointerEnter,
+    onPointerLeave,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp: endDrag,
+    onPointerCancel: endDrag,
+    onLostPointerCapture: endDrag,
+    onFocus,
+    onBlur,
+  };
 }

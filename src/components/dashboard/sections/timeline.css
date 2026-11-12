@@ -102,6 +102,18 @@
   display: none;
 }
 
+/* Mouse drag (use-auto-scroll.ts). Touch keeps native panning, so only fine pointers get the hand. */
+@media (pointer: fine) {
+  .tl-viewport {
+    cursor: grab;
+  }
+}
+
+.tl-viewport.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
 .tl-list {
   display: flex;
   margin: 0;

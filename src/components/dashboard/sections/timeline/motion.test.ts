@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { easeOutSoft, stepTarget } from "./motion";
+import { dragScrollLeft, easeOutSoft, stepTarget } from "./motion";
 
 test("ease cubic-bezier(.2,.7,.2,1): pinned ends, monotonic, front-loaded", () => {
   assert.equal(easeOutSoft(0), 0);
@@ -39,4 +39,14 @@ test("nothing to scroll: both directions stay at 0", () => {
   assert.equal(stepTarget([0, 280], 0, 1, 0), 0);
   assert.equal(stepTarget([0, 280], 0, -1, -20), 0);
   assert.equal(stepTarget([], 0, 1, 500), 500);
+});
+
+test("dragging follows the mouse and stays inside the track", () => {
+  // Dragging left (mouse moves -100px) shows later cards; right shows earlier ones.
+  assert.equal(dragScrollLeft(200, 500, 400, 1000), 300);
+  assert.equal(dragScrollLeft(200, 500, 550, 1000), 150);
+  assert.equal(dragScrollLeft(200, 500, 900, 1000), 0);
+  assert.equal(dragScrollLeft(900, 500, 100, 1000), 1000);
+  // A track that fits on screen doesn't move.
+  assert.equal(dragScrollLeft(0, 500, 100, -20), 0);
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { authorLabel, capRows, checksLabel, chunk, formatChange, formatClockOrDay, formatPrice, plural, sameCurrency } from "./format";
+import { authorLabel, balancedColumns, capRows, checksLabel, chunk, formatChange, formatClockOrDay, formatPrice, plural, sameCurrency } from "./format";
 
 const zone = "America/Denver";
 const now = new Date("2026-10-14T18:00:00Z"); // 12:00 MDT
@@ -97,4 +97,19 @@ test("an orphan is new until its second Wednesday check", () => {
   assert.equal(checksLabel(1), "new");
   assert.equal(checksLabel(2), "2 checks");
   assert.equal(checksLabel(7), "7 checks");
+});
+
+test("balanced columns: the width sets the column count, more items make columns longer", () => {
+  const twelve = Array.from({ length: 12 }, (_, index) => index + 1);
+  assert.deepEqual(balancedColumns(twelve, 4).map((column) => column.length), [3, 3, 3, 3]);
+  assert.deepEqual(balancedColumns(twelve, 3).map((column) => column.length), [4, 4, 4]);
+  assert.deepEqual(balancedColumns(twelve, 2).map((column) => column.length), [6, 6]);
+  assert.deepEqual(balancedColumns(twelve, 1).map((column) => column.length), [12]);
+  // Filled top to bottom, then left to right.
+  assert.deepEqual(balancedColumns(twelve, 3)[1], [5, 6, 7, 8]);
+  // Fewer items: shorter columns, never more than asked, the last one may be short.
+  assert.deepEqual(balancedColumns([1, 2, 3, 4, 5], 4), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(balancedColumns([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 4).map((column) => column.length), [3, 3, 3, 2]);
+  assert.deepEqual(balancedColumns([], 4), []);
+  assert.deepEqual(balancedColumns([1, 2], 0), [[1, 2]]);
 });

@@ -71,6 +71,15 @@ export function chunk<T>(items: readonly T[], size: number): T[][] {
   return columns;
 }
 
+/**
+ * At most `maxColumns` columns of equal length, filled top to bottom then left to right (the last one
+ * may be shorter). More items make the columns longer; they never add a column.
+ */
+export function balancedColumns<T>(items: readonly T[], maxColumns: number): T[][] {
+  if (items.length === 0) return [];
+  return chunk(items, Math.ceil(items.length / Math.max(1, Math.floor(maxColumns))));
+}
+
 /** An orphan's age: "3 checks" once it has been listed on two Wednesday checks or more, "new" before that. */
 export function checksLabel(checks: number): string {
   return checks <= 1 ? "new" : `${checks} checks`;
