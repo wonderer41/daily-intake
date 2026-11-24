@@ -1,4 +1,5 @@
 import type { CommitDetail, CommitSummary } from "@/lib/integrations/github/pushes";
+import { redactSecrets } from "@/lib/live/redact";
 
 // The push review's run input for Hermes's API server, and the parser for its answer. Hermes only
 // judges: the dashboard reads GitHub, and writes the push updates from the answer.
@@ -11,6 +12,31 @@ const NOTE_MAX = 500;
 
 /** Lock files, minified bundles and source maps: listed, but their diff is left out. */
 const NO_DIFF = /(^|\/)(package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|Cargo\.lock|poetry\.lock|Pipfile\.lock|uv\.lock|Gemfile\.lock|composer\.lock|go\.sum|flake\.lock)$|\.min\.(js|css)$|\.map$/;
+
+/** Env files, private keys, certificates and credential files: listed by name only, their diff is never sent. */
+const SENSITIVE =
+  /(^|\/)(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.pgpass|\.htpasswd|\.git-credentials|credentials(\.[a-z]+)?|secrets?\.[a-z]+|id_(rsa|dsa|ecdsa|ed25519))$|\.(pem|key|crt|cer|der|p12|pfx|jks|keystore|kdbx|gpg|ovpn|tfvars)$/i;
+
+/** A private key block, up to its END line (or the end of the patch when it was cut). */
+const PRIVATE_KEY = /-----BEGIN ([A-Z ]*)PRIVATE KEY-----[\s\S]*?(-----END \1PRIVATE KEY-----|$)/g;
+/** Known token formats: GitHub, AWS, Slack, OpenAI/Anthropic, Google, Stripe, and JWTs. */
+const TOKEN =
+  /\b(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{35}|[sr]k_(live|test)_[A-Za-z0-9]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})/g;
+/** A field name that usually holds a secret: password, token, API/access/private key, credential, connection URL. */
+const SECRET_NAME =
+  "[A-Za-z0-9_.-]*?(?:passw(?:or)?d|pwd|passphrase|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|[_-]key|credential|database[_-]?url)[A-Za-z0-9_.-]*";
+/** `password = "value"`, `"apiKey": 'value'`: the quoted value of a secret-named field, anywhere in a line. */
+const QUOTED_SECRET = new RegExp(`(${SECRET_NAME}["']?\\s*[:=]\\s*)(["'\`])[^"'\`\\n]{4,}\\2`, "gi");
+/** `API_KEY=value`, `password: value` lines (.env, YAML, INI, shell): an unquoted value that runs to the end of the line. */
+const PLAIN_SECRET = new RegExp(`^([+ -]\\s*(?:-\\s+)?(?:export\\s+)?${SECRET_NAME}\\s*[:=]\\s*)[^\\s"'\`(){}\\[\\],;]{4,}([,;]?\\s*)$`, "gim");
+
+/** `patch` with secret-looking values replaced by ***, before anything is sent to Hermes. */
+function redactPatch(patch: string): string {
+  return redactSecrets(patch.replace(PRIVATE_KEY, "-----BEGIN $1PRIVATE KEY-----***-----END $1PRIVATE KEY-----"))
+    .replace(TOKEN, "***")
+    .replace(QUOTED_SECRET, "$1$2***$2")
+    .replace(PLAIN_SECRET, "$1***$2");
+}
 
 export interface ReviewItem {
   id: string;
@@ -48,7 +74,9 @@ function short(sha: string): string {
 
 /**
  * File lists and diffs, oldest commit first. DIFF_BUDGET is shared fairly: each commit gets an
- * equal part of what is left, and what one doesn't use passes to the next. Pure.
+ * equal part of what is left, and what one doesn't use passes to the next. Sensitive files are
+ * listed without their diff, and secret-looking values in the other diffs become ***. Pure apart
+ * from reading process.env, whose secret values are redacted too.
  */
 export function formatChanges(commits: readonly CommitSummary[], details: readonly CommitDetail[], budget = DIFF_BUDGET): string[] {
   const bySha = new Map(details.map((detail) => [detail.sha, detail]));
@@ -65,8 +93,9 @@ export function formatChanges(commits: readonly CommitSummary[], details: readon
       lines.push(`${letter} ${file.filename} (+${file.additions} −${file.deletions})`);
     }
     for (const file of detail.files) {
-      if (!file.patch || NO_DIFF.test(file.filename)) continue;
-      let patch = file.patch.length > FILE_PATCH_MAX ? `${file.patch.slice(0, FILE_PATCH_MAX)}\n… (rest of this file's diff left out)` : file.patch;
+      if (!file.patch || NO_DIFF.test(file.filename) || SENSITIVE.test(file.filename)) continue;
+      const redacted = redactPatch(file.patch);
+      let patch = redacted.length > FILE_PATCH_MAX ? `${redacted.slice(0, FILE_PATCH_MAX)}\n… (rest of this file's diff left out)` : redacted;
       if (patch.length > allowance) {
         if (allowance < 500) {
           skipped += 1;

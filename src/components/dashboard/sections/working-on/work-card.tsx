@@ -5,6 +5,7 @@ import { GitHubMark } from "@/components/ui/github-mark";
 import { ChatIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { InnerCard } from "@/components/ui/inner-card";
 import { ProgressSegments } from "@/components/ui/progress-segments";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { localDateString } from "@/lib/time/zone";
 import type { ChecklistItemDto, ItemProgressDto, UpdateCardRequest, UpdateItemRequest, WorkCardDto } from "@/types/dashboard-contracts";
 import { fetchJson, isAbortError, isApiRequestError } from "../../api";
@@ -12,7 +13,7 @@ import { useDashboard, type TodayUpdater } from "../../context";
 import { ChecklistRow } from "./checklist-row";
 import { DueControl } from "./due-control";
 import { countLine, dueLabel, effectiveDue, issueRef, repoShortName } from "./labels";
-import { confirmProgress, dropProgress, setCardDue, setItemDone, setItemDue } from "./optimistic";
+import { confirmProgress, dropProgress, setCardDue, setCardPushReview, setItemDone, setItemDue } from "./optimistic";
 
 /** DOM id of a card's title button (focus fallback). */
 export function cardToggleId(cardId: string): string {
@@ -21,6 +22,10 @@ export function cardToggleId(cardId: string): string {
 
 const NOTICE_MS = 8_000;
 const CONFLICT_NOTICE = "Changed elsewhere — reloaded.";
+const PUSH_REVIEW_OPTIONS = [
+  { value: "off", label: "Off" },
+  { value: "on", label: "On" },
+] as const;
 
 export interface WorkCardProps {
   card: WorkCardDto;
@@ -112,6 +117,17 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
     const body: UpdateCardRequest = { version: Math.max(card.version, cardVersion.current), dueOn };
     mutate(
       (today) => setCardDue(today, card.id, dueOn),
+      () => fetchJson<WorkCardDto>(`/api/cards/${encodeURIComponent(card.id)}`, { method: "PATCH", json: body }),
+    ).then((saved) => {
+      cardVersion.current = saved.version;
+      showNotice(null);
+    }, showError);
+  }
+
+  function setPushReview(pushReview: boolean) {
+    const body: UpdateCardRequest = { version: Math.max(card.version, cardVersion.current), pushReview };
+    mutate(
+      (today) => setCardPushReview(today, card.id, pushReview),
       () => fetchJson<WorkCardDto>(`/api/cards/${encodeURIComponent(card.id)}`, { method: "PATCH", json: body }),
     ).then((saved) => {
       cardVersion.current = saved.version;
@@ -226,6 +242,19 @@ export function WorkCard({ card, open, bubbleItemId, canSchedule, onToggle, onSc
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-light/20 py-2">
               <span className="text-[14px] text-text-muted">{card.dueOn ? "Card deadline" : "No card deadline"}</span>
               <DueControl value={card.dueOn} name={title} onChange={setCardDeadline} />
+            </div>
+          ) : null}
+          {canSchedule && card.repoFullName ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-light/20 py-2">
+              <span className="min-w-0 text-[14px] text-text-muted">
+                {card.pushReview ? "Push review on: new commits are sent to Hermes" : "Push review off: no code is sent to Hermes"}
+              </span>
+              <SegmentedControl
+                label={`Push review for ${title}`}
+                options={PUSH_REVIEW_OPTIONS}
+                value={card.pushReview ? "on" : "off"}
+                onChange={(value) => setPushReview(value === "on")}
+              />
             </div>
           ) : null}
           {card.items.length === 0 ? (

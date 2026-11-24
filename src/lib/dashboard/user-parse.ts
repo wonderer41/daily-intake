@@ -143,10 +143,11 @@ export interface UpdateCardInput {
   milestoneTitle: string | null | undefined;
   /** YYYY-MM-DD; null clears it. */
   dueOn: string | null | undefined;
+  pushReview: boolean | undefined;
 }
 
 export function parseUpdateCard(body: unknown): UpdateCardInput {
-  const o = strictObject(body, ROOT, ["version", "title", "status", "sprintId", "position", "milestoneTitle", "dueOn"]);
+  const o = strictObject(body, ROOT, ["version", "title", "status", "sprintId", "position", "milestoneTitle", "dueOn", "pushReview"]);
   return {
     version: version(o.version),
     title: optional(o.title, (v) => requiredString(v, "title", 160)),
@@ -155,6 +156,7 @@ export function parseUpdateCard(body: unknown): UpdateCardInput {
     position: position(o.position),
     milestoneTitle: optionalString(o.milestoneTitle, "milestoneTitle", 160),
     dueOn: (o.dueOn === undefined || o.dueOn === null ? o.dueOn : localDate(o.dueOn, "dueOn")) as string | null | undefined,
+    pushReview: optional(o.pushReview, (v) => boolean(v, "pushReview")),
   };
 }
 

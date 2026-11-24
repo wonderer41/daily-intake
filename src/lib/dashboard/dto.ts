@@ -153,6 +153,7 @@ export function toWorkCardDto(row: CardRow): WorkCardDto {
     externalKey: row.externalKey,
     title: row.title,
     repoFullName: row.repoFullName,
+    pushReview: row.pushReview,
     milestoneTitle: row.milestoneTitle,
     dueOn: row.dueOn === null ? null : dateOnly(row.dueOn),
     sprintId: row.sprintId,

@@ -87,6 +87,8 @@ model WorkCard {
   title            String          @db.VarChar(160)
   /// "owner/repo" when the card mirrors a GitHub repository.
   repoFullName     String?         @db.VarChar(200)
+  /// Push review is on: new commits on repoFullName are sent to Hermes to update this checklist. Off until the user turns it on.
+  pushReview       Boolean         @default(false)
   milestoneTitle   String?         @db.VarChar(160)
   /// Deadline (a local date; overdue once that day is over). Items without their own fall under this.
   dueOn            DateTime?       @db.Date

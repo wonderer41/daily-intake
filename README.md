@@ -57,8 +57,9 @@ Hermes ──► /api/hermes/* ────────────────�
 ```
 
 - The **worker** is a separate process from the app. It syncs the calendar every 2 minutes, Seerr
-  every 2 minutes, stock quotes and GitHub every 5 minutes, stock history once a day, and the orphan
-  folder every Wednesday. It also hands new pushes on card repos to Hermes for review.
+  every 2 minutes, GitHub every 5 minutes, stock quotes every hour, stock history once a day, and the
+  orphan folder every Wednesday. It also hands new pushes on card repos with push review turned on to
+  Hermes for review.
 - **Hermes** pushes what only an agent can work out: the Gmail summary, the daily scan, alerts, the
   daily message, and cards, sprints and checklist items.
 - Every source is optional. A section whose source isn't set up stays empty or hides itself, and the
@@ -145,7 +146,7 @@ skips it too.
    Nothing needs write access.
 3. Put it in `GITHUB_TOKEN`.
 4. Give a card a repo (`owner/name`), then test: `npm run sync:github`. It prints the card's meta line
-   and the branches the push review watches.
+   and the branches the push review watches (only repos whose card has push review on).
 
 ### Orphans folder
 
@@ -213,12 +214,17 @@ To set it up:
 4. Developing on another machine? Tunnel to it:
    `ssh -L 8642:<API_SERVER_HOST>:8642 <user>@<hermes-host>`, then use `http://127.0.0.1:8642/v1`.
 
-**Push review** uses the same connection. Every 5 minutes the GitHub sync looks at each card repo's
-default branch and open pull requests:
+**Push review** uses the same connection. It is off on every card until you turn it on: open the card
+and set **Push review** to **On**. Every 5 minutes the GitHub sync looks at the default branch and
+open pull requests of each card repo with push review on:
 
 1. New commits since the last review go to Hermes in one run: the commit messages, the changed files,
-   the diffs (about 60 KB at most; lock files left out) and the open items of that repo's cards.
-   Several pushes between two syncs become one review.
+   the diffs (about 60 KB at most; lock files left out) and the open items of that repo's cards with
+   push review on. Several pushes between two syncs become one review.
+   - Env files, keys, certificates and credential files (`.env*`, `.pem`, `.key`, `id_rsa`,
+     `credentials.json`, …) are listed by name only; their diff is never sent.
+   - In the other diffs, secret-looking values (passwords, tokens, API keys, private keys) are
+     replaced with `***` before anything is sent.
 2. Hermes answers with one line of JSON, and the dashboard turns it into push updates in Important and
    on the card. Hermes needs no GitHub access of its own.
 3. A repo seen for the first time starts at its current commit. A new pull request has all its

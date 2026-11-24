@@ -83,6 +83,8 @@ export interface WorkCardDto {
   externalKey: string | null;
   title: string;
   repoFullName: string | null;
+  /** Push review on: new commits on repoFullName are sent to Hermes to update the checklist. Off by default. */
+  pushReview: boolean;
   milestoneTitle: string | null;
   /** Deadline, YYYY-MM-DD local. Items without their own dueOn fall under it. */
   dueOn: string | null;
@@ -119,6 +121,7 @@ export interface UpdateCardRequest {
   milestoneTitle?: string | null;
   /** YYYY-MM-DD, or null to clear. */
   dueOn?: string | null;
+  pushReview?: boolean;
 }
 
 export interface CreateItemRequest {
