@@ -57,9 +57,9 @@ Hermes ──► /api/hermes/* ────────────────�
 ```
 
 - The **worker** is a separate process from the app. It syncs the calendar every 2 minutes, Seerr
-  every 2 minutes, stock quotes and GitHub every 5 minutes, stock history once a day, and the orphan
-  folder every Wednesday. It also hands new pushes on card repos with push review turned on to Hermes
-  for review.
+  every 2 minutes, GitHub every 5 minutes, stock quotes every hour, stock history once a day, and the
+  orphan folder every Wednesday. It also hands new pushes on card repos with push review turned on to
+  Hermes for review.
 - **Hermes** pushes what only an agent can work out: the Gmail summary, the daily scan, alerts, the
   daily message, and cards, sprints and checklist items.
 - Every source is optional. A section whose source isn't set up stays empty or hides itself, and the

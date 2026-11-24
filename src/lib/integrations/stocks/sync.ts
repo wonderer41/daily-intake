@@ -50,7 +50,7 @@ async function refreshSixMonth(symbol: string, now: Date, config: StocksApiConfi
   return pct;
 }
 
-/** Every 5 minutes: quotes for the whole watchlist -> one complete BannerSnapshot (kind stocks). */
+/** Every hour: quotes for the whole watchlist -> one complete BannerSnapshot (kind stocks). */
 export async function syncStockQuotes(now: Date): Promise<QuoteSyncResult> {
   const watchlist = await readWatchlist();
   if (watchlist.length === 0) throw emptyWatchlistError();

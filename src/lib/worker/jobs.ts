@@ -115,7 +115,7 @@ export const workerJobs: WorkerJob[] = [
   {
     // Finnhub quotes → stocks banner snapshot (D9). Publishes banner.updated itself.
     name: "stocks-quotes",
-    trigger: { everyMs: 5 * MINUTE },
+    trigger: { everyMs: 60 * MINUTE },
     run: async ({ now }) => {
       const result = await syncStockQuotes(now);
       return `${result.snapshot.rows.length} rows${failedSummary(result.failed)}`;
