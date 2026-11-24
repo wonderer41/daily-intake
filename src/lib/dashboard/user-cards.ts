@@ -54,7 +54,7 @@ export async function createCard(input: CreateCardInput, now = new Date()): Prom
 function cardChanges(row: WorkCard, input: UpdateCardInput): { fields: string[]; data: Prisma.WorkCardUncheckedUpdateManyInput } {
   const fields: string[] = [];
   const data: Prisma.WorkCardUncheckedUpdateManyInput = {};
-  const set = <K extends "title" | "status" | "sprintId" | "position" | "milestoneTitle">(field: K, value: WorkCard[K] | undefined) => {
+  const set = <K extends "title" | "status" | "sprintId" | "position" | "milestoneTitle" | "pushReview">(field: K, value: WorkCard[K] | undefined) => {
     if (value === undefined || value === row[field]) return;
     fields.push(field);
     (data as Record<string, unknown>)[field] = value;
@@ -64,6 +64,7 @@ function cardChanges(row: WorkCard, input: UpdateCardInput): { fields: string[];
   set("sprintId", input.sprintId);
   set("position", input.position);
   set("milestoneTitle", input.milestoneTitle);
+  set("pushReview", input.pushReview);
   if (dueOnChanged(row.dueOn, input.dueOn)) {
     fields.push("dueOn");
     data.dueOn = toDueOn(input.dueOn ?? null);

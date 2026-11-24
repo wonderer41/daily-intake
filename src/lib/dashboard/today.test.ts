@@ -68,6 +68,7 @@ function card(id: string, position: number, items: CardRow["items"]): CardRow {
     externalKey: null,
     title: `Card ${id}`,
     repoFullName: null,
+    pushReview: false,
     milestoneTitle: null,
     dueOn: null,
     sprintId: sprint.id,

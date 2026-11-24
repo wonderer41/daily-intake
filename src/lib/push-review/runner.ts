@@ -183,7 +183,7 @@ type Prepared = { kind: "skip"; reason: string } | { kind: "review"; prompt: str
 
 async function openItems(repo: string): Promise<{ items: ReviewItem[]; repoFullName: string }> {
   const cards = await prisma.workCard.findMany({
-    where: { status: { not: "archived" }, repoFullName: { equals: repo, mode: "insensitive" } },
+    where: { status: { not: "archived" }, pushReview: true, repoFullName: { equals: repo, mode: "insensitive" } },
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     select: {
       title: true,
@@ -214,7 +214,7 @@ async function newCommits(row: PushWatch, access: GithubAccess): Promise<{ commi
 
 async function prepareReview(row: PushWatch, access: GithubAccess): Promise<Prepared> {
   const { items, repoFullName } = await openItems(row.repo);
-  if (items.length === 0) return { kind: "skip", reason: "no open items on its cards" };
+  if (items.length === 0) return { kind: "skip", reason: "no open items on its cards with push review on" };
 
   const { commits, leftOut } = await newCommits(row, access);
   if (commits.length === 0) return { kind: "skip", reason: "only merge commits or commits already reviewed in a pull request" };

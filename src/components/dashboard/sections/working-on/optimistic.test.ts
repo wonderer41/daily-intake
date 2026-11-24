@@ -47,6 +47,7 @@ function page(items: ChecklistItemDto[]): TodayResponse {
     externalKey: null,
     title: "card",
     repoFullName: null,
+    pushReview: false,
     milestoneTitle: null,
     dueOn: null,
     sprintId: null,

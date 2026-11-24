@@ -4,16 +4,16 @@ import { loadGithubToken } from "@/lib/integrations/github/api";
 import { fetchBranchHead, fetchOpenPulls, fetchPull, type GithubAccess, type OpenPull, type PullState } from "@/lib/integrations/github/pushes";
 import { safeErrorMessage } from "@/lib/live/redact";
 
-// The GitHub sync's half of the push review: keeps one PushWatch row per watched branch (each card
-// repo's default branch and its open pull requests) pointing at the newest commit. The push-review
-// job then reviews whatever lies between reviewedSha and headSha.
+// The GitHub sync's half of the push review: keeps one PushWatch row per watched branch (the default
+// branch and open pull requests of each card repo with push review turned on) pointing at the newest
+// commit. The push-review job then reviews whatever lies between reviewedSha and headSha.
 //
 // - A repo seen for the first time starts at its current commit: nothing older is reviewed.
 // - A pull request seen for the first time has all its commits reviewed (reviewedSha = null).
 // - A pull request that leaves the open list: merged → kept (closedAt) so its last push is still
 //   reviewed and the default branch skips the commits it brought in, then deleted after a week;
 //   closed without merging → deleted.
-// - Repos no longer on any card lose their rows.
+// - Repos no longer on any card with push review on lose their rows.
 
 const CLOSED_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
 const TITLE_MAX = 300;
@@ -185,19 +185,30 @@ async function applyPlan(plan: RepoPlan, access: GithubAccess, repo: string, now
   if (plan.deletes.length > 0) await prisma.pushWatch.deleteMany({ where: { id: { in: plan.deletes } } });
 }
 
+/** Lowercased repos of the non-archived cards with push review turned on. */
+async function pushReviewRepos(): Promise<Set<string>> {
+  const cards = await prisma.workCard.findMany({
+    where: { status: { not: "archived" }, pushReview: true, repoFullName: { not: null } },
+    select: { repoFullName: true },
+  });
+  return new Set(cards.flatMap((card) => (card.repoFullName?.trim() ? [card.repoFullName.trim().toLowerCase()] : [])));
+}
+
 /**
  * Brings the PushWatch rows in line with GitHub (2 calls per repo, plus one per pull request that
- * just closed). One repo failing is recorded and the others still run.
+ * just closed). Only repos with push review turned on are watched. One repo failing is recorded
+ * and the others still run.
  */
 export async function syncPushWatches(now: Date, input: PushWatchSyncInput, deps: PushWatchDeps = {}): Promise<PushWatchSyncResult> {
   const result: PushWatchSyncResult = { watching: 0, toReview: 0, failed: [] };
-  const keep = [...new Set(input.cardRepos.map((repo) => repo.trim().toLowerCase()))];
+  const optedIn = await pushReviewRepos();
+  const keep = [...new Set(input.cardRepos.map((repo) => repo.trim().toLowerCase()))].filter((repo) => optedIn.has(repo));
   await prisma.pushWatch.deleteMany({ where: { repo: { notIn: keep } } });
 
   const synced = new Map<string, string>();
   for (const { repoFullName, defaultBranch } of input.synced) {
     const repo = repoFullName.trim().toLowerCase();
-    if (!synced.has(repo) && defaultBranch) synced.set(repo, defaultBranch);
+    if (!synced.has(repo) && defaultBranch && optedIn.has(repo)) synced.set(repo, defaultBranch);
   }
   if (synced.size === 0) return result;
   const access: GithubAccess = { token: loadGithubToken(deps.env ?? process.env), fetch: deps.fetch ?? fetch };

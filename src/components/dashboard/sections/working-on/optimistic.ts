@@ -66,6 +66,14 @@ export function setItemDue(today: TodayResponse, cardId: string, itemId: string,
   return updateItem(today, cardId, itemId, (item) => ({ ...item, dueOn }));
 }
 
+/** Push review turned on or off on a card. */
+export function setCardPushReview(today: TodayResponse, cardId: string, pushReview: boolean): TodayResponse {
+  return {
+    ...today,
+    workingOn: { ...today.workingOn, cards: today.workingOn.cards.map((card) => (card.id === cardId ? { ...card, pushReview } : card)) },
+  };
+}
+
 /** A new deadline (or none) on a card. */
 export function setCardDue(today: TodayResponse, cardId: string, dueOn: string | null): TodayResponse {
   return {
